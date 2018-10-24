@@ -8,9 +8,6 @@ The skylark-utils-dom library provides a comprehensive dom utility functions, le
 - Concise  
 The skylark-utils library pursues a high modularity and high reusability，and was written to be straightforward and easy to read. Naturally, when the bug occurs, the program will be easier to debug. 
 
-## What's included
-The modules contained in the library are listed by category as follows:
-
 base api
 -------------
 - browser  
@@ -65,8 +62,6 @@ This module provides a similar jquery api,  [skykark-jquery](https://github.com/
 | full （development） | uncompressed/skylark-utils-dom-all.js | included skylark-langx |
 | only utils （development）| uncompressed/skylark-utils-dom.js | not included skylark-langx |
 
-
-
 ## Installation
 You can get the latest version in many different ways:
 
@@ -118,12 +113,12 @@ Please access the following site for the execution of each example program under
 - http://www.skylarkjs.org/examples
 - http://examples.skylarkjs.org/skylark-utils/
 
-## Building skylark-utils-dom
+## Building 
 
 - Ensure that Node.js is installed.
-- Run npm gulp -g to ensure gulp is installed.
+- Run npm install https://github.com/skylarkjs/skylark-bundle-cli.git -g to ensure sbundle is installed.
 - Run npm install to ensure the required dependencies are installed.
-- change current directory to build/, and run gulp. The builds will be placed in the dist/ directory.
+- Run npm run build. The builds will be placed in the dist/ directory.
 
 ## License
 
