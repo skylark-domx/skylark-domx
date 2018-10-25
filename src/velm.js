@@ -111,13 +111,6 @@ define([
         "val"
     ], datax);
 
-    // from ./dnd
-    velm.delegate([
-        "draggable",
-        "droppable"
-    ], dnd);
-
-
     // from ./eventer
     velm.delegate([
         "off",
