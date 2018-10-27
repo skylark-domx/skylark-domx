@@ -10,7 +10,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -24,7 +24,7 @@
     <div>to iterate through</div>
     <div>these divs.</div>
     <script>
-    require(["skylark-utils/query","skylark-utils/langx"], function($, langx) {
+    require(["skylark-utils-dom/query","skylark-utils-dom/langx"], function($, langx) {
         $(document.body).on("click", function() {
             langx.each($("div"), function(i) {
                 if (this.style.color != "blue") {

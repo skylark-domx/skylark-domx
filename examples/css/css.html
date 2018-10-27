@@ -13,7 +13,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/uncompressed/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/uncompressed/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/dev/langx/skylark-langx/uncompressed/skylark-langx"
         }]
@@ -25,7 +25,7 @@
     <p class="class1" id="target">This is a styler.css item with class name class1 </p>
     <p class="class1 class2"> This is a styler.css item This is a styler.css item with class name class1 and class2</p>
     <script>
-    require(["skylark-utils/css", "skylark-utils/styler"], function(css) {
+    require(["skylark-utils-dom/css", "skylark-utils-dom/styler"], function(css) {
         css.createStyleSheet([{
             "body" : {
                 "background" : "red",

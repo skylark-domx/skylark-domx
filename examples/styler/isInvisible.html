@@ -9,7 +9,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -21,7 +21,7 @@
     <p>This is a p </p>
       Is 'p' element  isInvisible ? <input></input>
     <script>
-    require(["skylark-utils/finder", "skylark-utils/datax", "skylark-utils/styler"], function(finder, datax,styler) {
+    require(["skylark-utils-dom/finder", "skylark-utils-dom/datax", "skylark-utils-dom/styler"], function(finder, datax,styler) {
       var bool =  styler.isInvisible(finder.find("p"));
         datax.val(finder.find("input"),bool);
     });

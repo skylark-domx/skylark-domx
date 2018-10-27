@@ -12,7 +12,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -25,7 +25,7 @@
     <span id="target">Click here...</span>
     <div id="one"></div>
     <script>
-    require(["skylark-utils/query", "skylark-utils/finder", "skylark-utils/fx"], function($, finder, fx) {
+    require(["skylark-utils-dom/query", "skylark-utils-dom/finder", "skylark-utils-dom/fx"], function($, finder, fx) {
         $("body").on("click", function() {
             fx.fadeIn(finder.find("div"), "slow");
         });

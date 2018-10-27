@@ -43,7 +43,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/uncompressed/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/uncompressed/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/dev/langx/skylark-langx/uncompressed/skylark-langx"
         }]
@@ -63,7 +63,7 @@
 	<textarea id = "target"  rows="10" cols="100"></textarea><br/>
 
     <script>
-    require(["skylark-utils/css", "skylark-utils/query"], function(css,$) {
+    require(["skylark-utils-dom/css", "skylark-utils-dom/query"], function(css,$) {
     	$("#parsecss").click(function(){
     		var str = $("#source").val();
     		var json = css.toJSON(str);

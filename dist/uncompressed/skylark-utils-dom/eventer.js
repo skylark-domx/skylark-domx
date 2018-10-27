@@ -640,6 +640,16 @@ define([
 
     }
 
+    if (browser.support.transitionEnd) {
+        specialEvents.transitionEnd = {
+          bindType: browser.support.transition.end,
+          delegateType: browser.support.transition.end,
+          handle: function (e) {
+            if ($(e.target).is(this)) return e.handleObj.handler.apply(this, arguments)
+          }
+        }        
+    }
+
     function eventer() {
         return eventer;
     }

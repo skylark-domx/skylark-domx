@@ -3,6 +3,7 @@ define([
     "./langx",
     "./noder"
 ], function(skylark, langx, noder) {
+    "use strict";
 
     var head = document.getElementsByTagName("head")[0],
         count = 0,

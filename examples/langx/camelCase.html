@@ -9,7 +9,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -21,7 +21,7 @@
 <h4>Example : <span>Turn a dasherized string into “camel case”. Doesn’t affect already camel-cased strings.</span></h4>
    camelCase("sky-lark") . result <b></b>
     <script>
-    require(["skylark-utils/finder", "skylark-utils/langx", "skylark-utils/datax"], function(finder, langx, datax) {
+    require(["skylark-utils-dom/finder", "skylark-utils-dom/langx", "skylark-utils-dom/datax"], function(finder, langx, datax) {
         datax.text(finder.find("b"), langx.camelCase("sky-lary"));
     });
     </script>

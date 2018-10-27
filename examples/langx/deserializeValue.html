@@ -10,7 +10,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -29,7 +29,7 @@
     <div> deserializeValue("JSON") . result <b></b></div>
     <div> deserializeValue("String") . result <b></b></div>
     <script>
-    require(["skylark-utils/query", "skylark-utils/langx", "skylark-utils/datax"], function($, langx, datax) {
+    require(["skylark-utils-dom/query", "skylark-utils-dom/langx", "skylark-utils-dom/datax"], function($, langx, datax) {
         var bs = $("b");
         $(bs.eq(0)).text(langx.deserializeValue("true"));
         $(bs.eq(1)).text(langx.deserializeValue("false"));

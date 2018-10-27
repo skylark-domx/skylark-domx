@@ -2,9 +2,19 @@ define([
     "./skylark",
     "./langx"
 ], function(skylark,langx) {
+    "use strict";
+ 
     var checkedCssProperties = {
-        "transitionproperty": "TransitionProperty",
-    };
+            "transitionproperty": "TransitionProperty",
+        },
+        transEndEventNames = {
+          WebkitTransition : 'webkitTransitionEnd',
+          MozTransition    : 'transitionend',
+          OTransition      : 'oTransitionEnd otransitionend',
+          transition       : 'transitionend'
+        },
+        transEndEventName = null;
+
 
     var css3PropPrefix = "",
         css3StylePrefix = "",
@@ -54,8 +64,11 @@ define([
             cssProps[cssPropName] = css3PropPrefix + cssPropName;
 
         }
-    }
 
+        if (transEndEventNames[name]) {
+          transEndEventName = transEndEventNames[name];
+        }
+    }
 
     function normalizeCssEvent(name) {
         return css3EventPrefix ? css3EventPrefix + name : name.toLowerCase();
@@ -99,6 +112,12 @@ define([
         }
 
     });
+
+    if  (transEndEventName) {
+        browser.support.transition = {
+            end : transEndEventName
+        };
+    }
 
     testEl = null;
 

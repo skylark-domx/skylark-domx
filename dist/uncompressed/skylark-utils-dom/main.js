@@ -9,6 +9,7 @@ define([
     "./geom",
     "./images",
     "./noder",
+    "./plugins",
     "./query",
     "./scripter",
     "./styler",

@@ -7,7 +7,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -31,7 +31,7 @@
         <br>
     </div>
     <script>
-    require(["skylark-utils/query", "skylark-utils/finder","skylark-utils/noder"], function($, finder, noder) {
+    require(["skylark-utils-dom/query", "skylark-utils-dom/finder","skylark-utils-dom/noder"], function($, finder, noder) {
         $("button").on("click", function() {
             var target = finder.byId("article");
             noder.fullScreen(target);

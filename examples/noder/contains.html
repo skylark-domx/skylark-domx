@@ -7,7 +7,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -22,7 +22,7 @@
 <span>noder.contains(document.body, document.documentElement)</span>
 <strong></strong>
     <script>
-    require(["skylark-utils/query", "skylark-utils/noder"], function($, noder) {
+    require(["skylark-utils-dom/query", "skylark-utils-dom/noder"], function($, noder) {
         var div1 = noder.contains(document.documentElement, document.body); // true
         $("strong:first").text(div1);
         var div2 = noder.contains(document.body, document.documentElement); // false

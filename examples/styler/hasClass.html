@@ -21,7 +21,7 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils",location: "../../dist/skylark-utils"
+            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
         }, {
             name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
         }]
@@ -33,7 +33,7 @@
     <p id="target" class="foo bar">This is a hasClass "foo" item </p>
     <p class="selected"> This is not a hasClass "foo" item </p>
     <script>
-    require(["skylark-utils/finder", "skylark-utils/styler"], function(finder, styler) {
+    require(["skylark-utils-dom/finder", "skylark-utils-dom/styler"], function(finder, styler) {
         styler.hasClass(finder.byId("target"), "foo");
     });
     </script>
