@@ -573,12 +573,19 @@ define([
 
             scrollLeft: wrapper_value(geom.scrollLeft, geom),
 
-            position: function() {
+            position: function(options) {
                 if (!this.length) return
 
-                var elem = this[0];
+                if (options) {
+                    return this.each( function() {
+                        geom.posit(this,options);
+                    });
+                } else {
+                    var elem = this[0];
 
-                return geom.relativePosition(elem);
+                    return geom.relativePosition(elem);
+
+                }             
             },
 
             offsetParent: wrapper_map(geom.offsetParent, geom)
