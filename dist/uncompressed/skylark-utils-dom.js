@@ -155,10 +155,15 @@ define('skylark-utils-dom/browser',[
             var cssPropName = langx.dasherize(matched[2]);
             cssProps[cssPropName] = css3PropPrefix + cssPropName;
 
+            if (transEndEventNames[name]) {
+              transEndEventName = transEndEventNames[name];
+            }
         }
+    }
 
-        if (transEndEventNames[name]) {
-          transEndEventName = transEndEventNames[name];
+    if (!transEndEventName) {
+        if (testStyle["transition"] !== undefined) {
+            transEndEventName = transEndEventNames[transition];
         }
     }
 
@@ -3525,11 +3530,11 @@ define('skylark-utils-dom/eventer',[
 
     if (browser.support.transitionEnd) {
         specialEvents.transitionEnd = {
+//          handle: function (e) {
+//            if ($(e.target).is(this)) return e.handleObj.handler.apply(this, arguments)
+//          },
           bindType: browser.support.transition.end,
-          delegateType: browser.support.transition.end,
-          handle: function (e) {
-            if ($(e.target).is(this)) return e.handleObj.handler.apply(this, arguments)
-          }
+          delegateType: browser.support.transition.end
         }        
     }
 

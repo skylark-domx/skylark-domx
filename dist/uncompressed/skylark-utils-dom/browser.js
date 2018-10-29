@@ -63,10 +63,15 @@ define([
             var cssPropName = langx.dasherize(matched[2]);
             cssProps[cssPropName] = css3PropPrefix + cssPropName;
 
+            if (transEndEventNames[name]) {
+              transEndEventName = transEndEventNames[name];
+            }
         }
+    }
 
-        if (transEndEventNames[name]) {
-          transEndEventName = transEndEventNames[name];
+    if (!transEndEventName) {
+        if (testStyle["transition"] !== undefined) {
+            transEndEventName = transEndEventNames[transition];
         }
     }
 
