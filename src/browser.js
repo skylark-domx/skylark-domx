@@ -71,7 +71,7 @@ define([
 
     if (!transEndEventName) {
         if (testStyle["transition"] !== undefined) {
-            transEndEventName = transEndEventNames[transition];
+            transEndEventName = transEndEventNames["transition"];
         }
     }
 

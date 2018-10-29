@@ -163,7 +163,7 @@ define('skylark-utils-dom/browser',[
 
     if (!transEndEventName) {
         if (testStyle["transition"] !== undefined) {
-            transEndEventName = transEndEventNames[transition];
+            transEndEventName = transEndEventNames["transition"];
         }
     }
 
