@@ -577,6 +577,10 @@ define([
                 if (!this.length) return
 
                 if (options) {
+                    if (options.of && options.of.length) {
+                        options = langx.clone(options);
+                        options.of = options.of[0];
+                    }
                     return this.each( function() {
                         geom.posit(this,options);
                     });

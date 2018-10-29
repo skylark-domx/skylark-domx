@@ -40,7 +40,14 @@ define([
      * @param {HTMLElement} elm
      */
     function borderExtents(elm) {
-        var s = getComputedStyle(elm);
+        if (noder.isWindow(elm)) {
+            return {
+                left : 0,
+                top : 0,
+                right : 0,
+                bottom : 0
+            }
+        }        var s = getComputedStyle(elm);
         return {
             left: px(s.borderLeftWidth, elm),
             top: px(s.borderTopWidth, elm),
@@ -232,6 +239,14 @@ define([
      * @param {HTMLElement} elm
      */
     function marginExtents(elm) {
+        if (noder.isWindow(elm)) {
+            return {
+                left : 0,
+                top : 0,
+                right : 0,
+                bottom : 0
+            }
+        }
         var s = getComputedStyle(elm);
         return {
             left: px(s.marginLeft),
@@ -270,6 +285,14 @@ define([
      * @param {HTMLElement} elm
      */
     function paddingExtents(elm) {
+        if (noder.isWindow(elm)) {
+            return {
+                left : 0,
+                top : 0,
+                right : 0,
+                bottom : 0
+            }
+        }
         var s = getComputedStyle(elm);
         return {
             left: px(s.paddingLeft),
@@ -636,8 +659,8 @@ define([
                 };
             }
             return {
-                size: marginSize(raw),
-                offset: offset(raw)
+                size: size(raw),
+                offset: pagePosition(raw)
             };
         }
 
@@ -666,7 +689,7 @@ define([
                 element: withinElement,
                 isWindow: isWindow,
                 isDocument: isDocument,
-                offset: hasOffset ? offset(element) : { left: 0, top: 0 },
+                offset: hasOffset ? pagePosition(element) : { left: 0, top: 0 },
                 scrollLeft: scrollLeft(withinElement),
                 scrollTop: scrollTop(withinElement),
                 width: msize.width,
@@ -845,8 +868,8 @@ define([
                     };
                 }
 
-                offset(elem, langx.extend( position, { using: using } ));
-            } );
+                pagePosition(elem, langx.extend( position, { using: using } ));
+            })(elm);
         }
 
         var positions = {
