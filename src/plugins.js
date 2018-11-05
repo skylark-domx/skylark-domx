@@ -37,7 +37,7 @@ define([
      */
     function instantiate(elm,pluginName,options) {
 
-        var pluginInstance = datax.data( elem, pluginName );
+        var pluginInstance = datax.data( elm, pluginName );
 
         if (options === undefined || options === "instance") {
             return pluginInstance;
@@ -180,7 +180,7 @@ define([
                 parts = key.split( "." );
                 key = parts.shift();
                 if ( parts.length ) {
-                    curOption = options[ key ] = $.plugin.extend( {}, this.options[ key ] );
+                    curOption = options[ key ] = langx.mixin( {}, this.options[ key ] );
                     for ( i = 0; i < parts.length - 1; i++ ) {
                         curOption[ parts[ i ] ] = curOption[ parts[ i ] ] || {};
                         curOption = curOption[ parts[ i ] ];
