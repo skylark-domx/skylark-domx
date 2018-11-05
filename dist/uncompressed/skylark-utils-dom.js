@@ -6783,7 +6783,9 @@ define('skylark-utils-dom/plugins',[
     /*
      * Register a plugin type
      */
-    function register( name, pluginKlass,shortcut) {
+    function register( pluginKlass,shortcut) {
+        var name = pluginKlass.prototype.pluginName;
+        
         pluginKlasses[name] = pluginKlass;
 
         if (shortcut) {
@@ -6862,9 +6864,10 @@ define('skylark-utils-dom/plugins',[
             this.eventNamespace = "." + this.pluginName + this.uuid;
 
             this.bindings = $();
+            this.classesElementLookup = {};
 
             if ( element !== this ) {
-                datax.data( element, this.pluginFullName, this );
+                datax.data( element, this.pluginName, this );
                 this._on( true, this.element, {
                     remove: function( event ) {
                         if ( event.target === element ) {
@@ -6912,7 +6915,7 @@ define('skylark-utils-dom/plugins',[
             // all event bindings should go through this._on()
             this.element
                 .off( this.eventNamespace )
-                .removeData( this.pluginFullName );
+                .removeData( this.pluginName );
             this.plugin()
                 .off( this.eventNamespace )
                 .removeAttr( "aria-disabled" );
