@@ -94,7 +94,7 @@ define([
         },
 
         _construct : function(options,element) {
-            this.options = langx.mixin( {}, this.options );
+            //this.options = langx.mixin( {}, this.options );
 
             element = $( element || this.defaultElement || this )[ 0 ];
             this.element = $( element );
@@ -123,10 +123,11 @@ define([
                 this.window = $( this.document[ 0 ].defaultView || this.document[ 0 ].parentWindow );
             }
 
-            this.options = langx.mixin( {},
-                this.options,
-                this._getCreateOptions(),
-                options );
+//            this.options = langx.mixin( {},
+//                this.options,
+//                this._getCreateOptions(),
+//                options );
+            this._initOptions(options);
 
             this._create();
 
@@ -135,9 +136,34 @@ define([
             this._init();
         },
 
-        _getCreateOptions: function() {
-            return {};
+        _initOptions : function(options) {
+          var ctor = this.constructor,
+              cache = ctor.cache = ctor.cache || {},
+              defaults = cache.defaults;
+          if (!defaults) {
+            var  ctors = [];
+            do {
+              ctors.unshift(ctor);
+              if (ctor === Plugin) {
+                break;
+              }
+              ctor = ctor.superclass;
+            } while (ctor);
+
+            defaults = cache.defaults = {};
+            for (var i=0;i<ctors.length;i++) {
+              ctor = ctors[i];
+              if (ctor.prototype.hasOwnProperty("options")) {
+                langx.mixin(defaults,ctor.prototype.options);
+              }
+            }
+          }
+          return this.options = langx.mixin(defaults,options);
         },
+
+//        _getCreateOptions: function() {
+//            return {};
+//        },
 
         _getCreateEventData: langx.noop,
 

@@ -2856,6 +2856,12 @@ define('skylark-utils-dom/datax',[
         }
     }
 
+
+    finder.pseudos.data = function( elem, i, match,dataName ) {
+        return !!data( elem, dataName || match[3]);
+    };
+   
+
     function datax() {
         return datax;
     }
@@ -5341,10 +5347,10 @@ define('skylark-utils-dom/query',[
         return function() {
             var self = this,
                 params = slice.call(arguments);
-            var result = $.map(self, function(elem, idx) {
+            var result = langx.map(self, function(elem, idx) {
                 return func.apply(context, [elem].concat(params));
             });
-            return $(uniq(result));
+            return query(uniq(result));
         }
     }
 
@@ -5952,7 +5958,6 @@ define('skylark-utils-dom/query',[
 
         $.fn.innerHeight = wrapper_value(geom.clientHeight, geom, geom.clientHeight);
 
-
         var traverseNode = noder.traverse;
 
         function wrapper_node_operation(func, context, oldValueFunc) {
@@ -6200,6 +6205,31 @@ define('skylark-utils-dom/query',[
             this.addClass(newClass);
             return this;
         };
+
+        $.fn.replaceClass = function(newClass, oldClass) {
+            this.removeClass(oldClass);
+            this.addClass(newClass);
+            return this;
+        };
+
+        $.fn.extend( {
+            disableSelection: ( function() {
+                var eventType = "onselectstart" in document.createElement( "div" ) ?
+                    "selectstart" :
+                    "mousedown";
+
+                return function() {
+                    return this.on( eventType + ".ui-disableSelection", function( event ) {
+                        event.preventDefault();
+                    } );
+                };
+            } )(),
+
+            enableSelection: function() {
+                return this.off( ".ui-disableSelection" );
+            }
+        });
+       
 
     })(query);
 
@@ -6856,7 +6886,7 @@ define('skylark-utils-dom/plugins',[
         },
 
         _construct : function(options,element) {
-            this.options = langx.mixin( {}, this.options );
+            //this.options = langx.mixin( {}, this.options );
 
             element = $( element || this.defaultElement || this )[ 0 ];
             this.element = $( element );
@@ -6885,10 +6915,11 @@ define('skylark-utils-dom/plugins',[
                 this.window = $( this.document[ 0 ].defaultView || this.document[ 0 ].parentWindow );
             }
 
-            this.options = langx.mixin( {},
-                this.options,
-                this._getCreateOptions(),
-                options );
+//            this.options = langx.mixin( {},
+//                this.options,
+//                this._getCreateOptions(),
+//                options );
+            this._initOptions(options);
 
             this._create();
 
@@ -6897,9 +6928,34 @@ define('skylark-utils-dom/plugins',[
             this._init();
         },
 
-        _getCreateOptions: function() {
-            return {};
+        _initOptions : function(options) {
+          var ctor = this.constructor,
+              cache = ctor.cache = ctor.cache || {},
+              defaults = cache.defaults;
+          if (!defaults) {
+            var  ctors = [];
+            do {
+              ctors.unshift(ctor);
+              if (ctor === Plugin) {
+                break;
+              }
+              ctor = ctor.superclass;
+            } while (ctor);
+
+            defaults = cache.defaults = {};
+            for (var i=0;i<ctors.length;i++) {
+              ctor = ctors[i];
+              if (ctor.prototype.hasOwnProperty("options")) {
+                langx.mixin(defaults,ctor.prototype.options);
+              }
+            }
+          }
+          return this.options = langx.mixin(defaults,options);
         },
+
+//        _getCreateOptions: function() {
+//            return {};
+//        },
 
         _getCreateEventData: langx.noop,
 

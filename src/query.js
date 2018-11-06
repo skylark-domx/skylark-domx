@@ -53,10 +53,10 @@ define([
         return function() {
             var self = this,
                 params = slice.call(arguments);
-            var result = $.map(self, function(elem, idx) {
+            var result = langx.map(self, function(elem, idx) {
                 return func.apply(context, [elem].concat(params));
             });
-            return $(uniq(result));
+            return query(uniq(result));
         }
     }
 
@@ -664,7 +664,6 @@ define([
 
         $.fn.innerHeight = wrapper_value(geom.clientHeight, geom, geom.clientHeight);
 
-
         var traverseNode = noder.traverse;
 
         function wrapper_node_operation(func, context, oldValueFunc) {
@@ -912,6 +911,31 @@ define([
             this.addClass(newClass);
             return this;
         };
+
+        $.fn.replaceClass = function(newClass, oldClass) {
+            this.removeClass(oldClass);
+            this.addClass(newClass);
+            return this;
+        };
+
+        $.fn.extend( {
+            disableSelection: ( function() {
+                var eventType = "onselectstart" in document.createElement( "div" ) ?
+                    "selectstart" :
+                    "mousedown";
+
+                return function() {
+                    return this.on( eventType + ".ui-disableSelection", function( event ) {
+                        event.preventDefault();
+                    } );
+                };
+            } )(),
+
+            enableSelection: function() {
+                return this.off( ".ui-disableSelection" );
+            }
+        });
+       
 
     })(query);
 
