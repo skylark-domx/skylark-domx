@@ -9038,23 +9038,21 @@ define('skylark-utils-dom/query',[
             return this;
         };
 
-        $.fn.extend( {
-            disableSelection: ( function() {
-                var eventType = "onselectstart" in document.createElement( "div" ) ?
-                    "selectstart" :
-                    "mousedown";
+        $.fn.disableSelection = ( function() {
+            var eventType = "onselectstart" in document.createElement( "div" ) ?
+                "selectstart" :
+                "mousedown";
 
-                return function() {
-                    return this.on( eventType + ".ui-disableSelection", function( event ) {
-                        event.preventDefault();
-                    } );
-                };
-            } )(),
+            return function() {
+                return this.on( eventType + ".ui-disableSelection", function( event ) {
+                    event.preventDefault();
+                } );
+            };
+        } )();
 
-            enableSelection: function() {
-                return this.off( ".ui-disableSelection" );
-            }
-        });
+        $.fn.enableSelection = function() {
+            return this.off( ".ui-disableSelection" );
+        };
        
 
     })(query);
