@@ -6805,6 +6805,7 @@ define('skylark-utils-dom/plugins',[
     "use strict";
 
 	var slice = Array.prototype.slice,
+        concat = Array.prototype.concat,
         pluginKlasses = {};
 
 
@@ -6818,7 +6819,9 @@ define('skylark-utils-dom/plugins',[
 
         if (shortcut) {
             velm.partial(shortcut,$.fn[shortcut] = function(options) {
-                return this.plugin.apply(this,[name].concat(arguments));
+                var args = slice.call(arguments,0);
+                args.unshift(name);
+                return this.plugin.apply(this,args);
             });
         }
     }
@@ -6831,7 +6834,7 @@ define('skylark-utils-dom/plugins',[
 
         var pluginInstance = datax.data( elm, pluginName );
 
-        if (options === undefined || options === "instance") {
+        if (options === "instance") {
             return pluginInstance;
         }
 
@@ -6979,6 +6982,15 @@ define('skylark-utils-dom/plugins',[
         },
 
         _destroy: langx.noop,
+
+        _delay: function( handler, delay ) {
+            function handlerProxy() {
+                return ( typeof handler === "string" ? instance[ handler ] : handler )
+                    .apply( instance, arguments );
+            }
+            var instance = this;
+            return setTimeout( handlerProxy, delay || 0 );
+        },
 
         option: function( key, value ) {
             var options = key;
