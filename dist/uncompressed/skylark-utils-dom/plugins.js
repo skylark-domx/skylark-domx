@@ -100,6 +100,8 @@ define([
             //this.options = langx.mixin( {}, this.options );
 
             element = $( element || this.defaultElement || this )[ 0 ];
+            this._elm = element;
+            
             this.element = $( element );
             this.uuid = pluginUuid++;
             this.eventNamespace = "." + this.pluginName + this.uuid;

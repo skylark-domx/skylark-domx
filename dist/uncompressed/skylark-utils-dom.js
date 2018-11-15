@@ -56,7 +56,7 @@
                 args.push(require(dep));
             })
 
-            module.exports = module.factory.apply(window, args);
+            module.exports = module.factory.apply(globals, args);
         }
         return module.exports;
     };
@@ -72,7 +72,7 @@
     var skylarkjs = require("skylark-langx/skylark");
 
     if (isCmd) {
-      exports = skylarkjs;
+      module.exports = skylarkjs;
     } else {
       globals.skylarkjs  = skylarkjs;
     }
@@ -6890,6 +6890,8 @@ define('skylark-utils-dom/plugins',[
             //this.options = langx.mixin( {}, this.options );
 
             element = $( element || this.defaultElement || this )[ 0 ];
+            this._elm = element;
+            
             this.element = $( element );
             this.uuid = pluginUuid++;
             this.eventNamespace = "." + this.pluginName + this.uuid;
