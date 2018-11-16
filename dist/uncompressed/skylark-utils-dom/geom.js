@@ -1,9 +1,9 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder",
     "./styler"
-], function(skylark, langx, noder, styler) {
+], function(dom, langx, noder, styler) {
     var rootNodeRE = /^(?:body|html)$/i,
         px = langx.toPixel,
         offsetParent = noder.offsetParent,
@@ -1052,5 +1052,5 @@ define([
         geom.posit = posit;
     })();
 
-    return skylark.geom = geom;
+    return dom.geom = geom;
 });

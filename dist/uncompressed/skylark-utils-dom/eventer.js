@@ -1,11 +1,11 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./finder",
     "./noder",
     "./datax"
-], function(skylark, langx, browser, finder, noder, datax) {
+], function(dom, langx, browser, finder, noder, datax) {
     var mixin = langx.mixin,
         each = langx.each,
         slice = Array.prototype.slice,
@@ -679,5 +679,5 @@ define([
 
     });
 
-    return skylark.eventer = eventer;
+    return dom.eventer = eventer;
 });

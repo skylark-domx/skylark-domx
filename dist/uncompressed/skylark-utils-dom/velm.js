@@ -1,5 +1,5 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./datax",
     "./eventer",
@@ -8,7 +8,7 @@ define([
     "./geom",
     "./noder",
     "./styler"
-], function(skylark, langx, datax, eventer, finder, fx, geom, noder, styler) {
+], function(dom, langx, datax, eventer, finder, fx, geom, noder, styler) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -264,5 +264,5 @@ define([
     });
 
 
-    return skylark.velm = velm;
+    return dom.velm = velm;
 });

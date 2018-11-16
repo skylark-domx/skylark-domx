@@ -1,9 +1,9 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder",
     "./finder"
-], function(skylark, langx, noder, finder) {
+], function(dom, langx, noder, finder) {
 
     var head = document.getElementsByTagName('head')[0],
         scriptsByUrl = {},
@@ -92,5 +92,5 @@ define([
         }
     });
 
-    return skylark.scripter = scripter;
+    return dom.scripter = scripter;
 });

@@ -1,8 +1,8 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./finder"
-], function(skylark, langx, finder) {
+], function(dom, langx, finder) {
     var map = Array.prototype.map,
         filter = Array.prototype.filter,
         camelCase = langx.camelCase,
@@ -288,5 +288,5 @@ define([
         val: val
     });
 
-    return skylark.datax = datax;
+    return dom.datax = datax;
 });

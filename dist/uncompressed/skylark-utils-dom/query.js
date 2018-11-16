@@ -1,5 +1,5 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder",
     "./datax",
@@ -8,7 +8,7 @@ define([
     "./geom",
     "./styler",
     "./fx"
-], function(skylark, langx, noder, datax, eventer, finder, geom, styler, fx) {
+], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx) {
     var some = Array.prototype.some,
         push = Array.prototype.push,
         every = Array.prototype.every,
@@ -948,6 +948,6 @@ define([
         return returnValue;
     };
 
-    return skylark.query = query;
+    return dom.query = query;
 
 });

@@ -1,5 +1,5 @@
 define([
-    "skylark-langx/skylark",
+    "./dom",
     "skylark-langx/klass",
     "./langx",
     "./noder",

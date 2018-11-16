@@ -1,5 +1,5 @@
 define([
-    "./skylark",
+    "./dom",
     "./browser",
     "./css",
     "./datax",
@@ -16,6 +16,6 @@ define([
     "./transforms",
     "./langx",
     "./velm"
-], function(skylark) {
-    return skylark;
+], function(dom) {
+    return dom;
 })

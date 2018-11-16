@@ -1,8 +1,8 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder"
-], function(skylark, langx, noder) {
+], function(dom, langx, noder) {
     "use strict";
 
     var head = document.getElementsByTagName("head")[0],
@@ -328,5 +328,5 @@ define([
         toString : toString
     });
 
-    return skylark.css = css;
+    return dom.css = css;
 });

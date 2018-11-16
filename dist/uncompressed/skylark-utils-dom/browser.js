@@ -1,7 +1,7 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx"
-], function(skylark,langx) {
+], function(dom,langx) {
     "use strict";
  
     var checkedCssProperties = {
@@ -126,5 +126,5 @@ define([
 
     testEl = null;
 
-    return skylark.browser = browser;
+    return dom.browser = browser;
 });

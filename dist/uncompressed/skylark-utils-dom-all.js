@@ -80,14 +80,14 @@
 
 })(function(define,require) {
 
+define('skylark-utils-dom/dom',["./dom"], function(skylark) {
+	return skylark.dom = {};
+});
+
 define('skylark-langx/skylark',[], function() {
     var skylark = {
 
     };
-    return skylark;
-});
-
-define('skylark-utils-dom/skylark',["skylark-langx/skylark"], function(skylark) {
     return skylark;
 });
 
@@ -2919,9 +2919,9 @@ define('skylark-utils-dom/langx',[
 });
 
 define('skylark-utils-dom/browser',[
-    "./skylark",
+    "./dom",
     "./langx"
-], function(skylark,langx) {
+], function(dom,langx) {
     "use strict";
  
     var checkedCssProperties = {
@@ -3046,13 +3046,13 @@ define('skylark-utils-dom/browser',[
 
     testEl = null;
 
-    return skylark.browser = browser;
+    return dom.browser = browser;
 });
 
 define('skylark-utils-dom/styler',[
-    "./skylark",
+    "./dom",
     "./langx"
-], function(skylark, langx) {
+], function(dom, langx) {
     var every = Array.prototype.every,
         forEach = Array.prototype.forEach,
         camelCase = langx.camelCase,
@@ -3298,14 +3298,14 @@ define('skylark-utils-dom/styler',[
         toggleClass: toggleClass
     });
 
-    return skylark.styler = styler;
+    return dom.styler = styler;
 });
 define('skylark-utils-dom/noder',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./styler"
-], function(skylark, langx, browser, styler) {
+], function(dom, langx, browser, styler) {
     var isIE = !!navigator.userAgent.match(/Trident/g) || !!navigator.userAgent.match(/MSIE/g),
         fragmentRE = /^\s*<(\w+|!)[^>]*>/,
         singleTagRE = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
@@ -3985,13 +3985,13 @@ define('skylark-utils-dom/noder',[
         unwrap: unwrap
     });
 
-    return skylark.noder = noder;
+    return dom.noder = noder;
 });
 define('skylark-utils-dom/css',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder"
-], function(skylark, langx, noder) {
+], function(dom, langx, noder) {
     "use strict";
 
     var head = document.getElementsByTagName("head")[0],
@@ -4317,15 +4317,15 @@ define('skylark-utils-dom/css',[
         toString : toString
     });
 
-    return skylark.css = css;
+    return dom.css = css;
 });
 
 define('skylark-utils-dom/finder',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./noder"
-], function(skylark, langx, browser, noder, velm) {
+], function(dom, langx, browser, noder, velm) {
     var local = {},
         filter = Array.prototype.filter,
         slice = Array.prototype.slice,
@@ -5426,13 +5426,13 @@ define('skylark-utils-dom/finder',[
         siblings: siblings
     });
 
-    return skylark.finder = finder;
+    return dom.finder = finder;
 });
 define('skylark-utils-dom/datax',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./finder"
-], function(skylark, langx, finder) {
+], function(dom, langx, finder) {
     var map = Array.prototype.map,
         filter = Array.prototype.filter,
         camelCase = langx.camelCase,
@@ -5718,16 +5718,16 @@ define('skylark-utils-dom/datax',[
         val: val
     });
 
-    return skylark.datax = datax;
+    return dom.datax = datax;
 });
 define('skylark-utils-dom/eventer',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./finder",
     "./noder",
     "./datax"
-], function(skylark, langx, browser, finder, noder, datax) {
+], function(dom, langx, browser, finder, noder, datax) {
     var mixin = langx.mixin,
         each = langx.each,
         slice = Array.prototype.slice,
@@ -6401,14 +6401,14 @@ define('skylark-utils-dom/eventer',[
 
     });
 
-    return skylark.eventer = eventer;
+    return dom.eventer = eventer;
 });
 define('skylark-utils-dom/geom',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder",
     "./styler"
-], function(skylark, langx, noder, styler) {
+], function(dom, langx, noder, styler) {
     var rootNodeRE = /^(?:body|html)$/i,
         px = langx.toPixel,
         offsetParent = noder.offsetParent,
@@ -7457,16 +7457,16 @@ define('skylark-utils-dom/geom',[
         geom.posit = posit;
     })();
 
-    return skylark.geom = geom;
+    return dom.geom = geom;
 });
 define('skylark-utils-dom/fx',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./geom",
     "./styler",
     "./eventer"
-], function(skylark, langx, browser, geom, styler, eventer) {
+], function(dom, langx, browser, geom, styler, eventer) {
     var animationName,
         animationDuration,
         animationTiming,
@@ -7987,15 +7987,15 @@ define('skylark-utils-dom/fx',[
         toggle: toggle
     });
 
-    return skylark.fx = fx;
+    return dom.fx = fx;
 });
 define('skylark-utils-dom/transforms',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./datax",
     "./styler"
-], function(skylark,langx,browser,datax,styler) {
+], function(dom,langx,browser,datax,styler) {
   var css3Transform = browser.normalizeCssProperty("transform");
 
   function getMatrix(radian, x, y) {
@@ -8117,11 +8117,11 @@ define('skylark-utils-dom/transforms',[
   });
 
 
-  return skylark.transforms = transforms;
+  return dom.transforms = transforms;
 });
 
 define('skylark-utils-dom/query',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder",
     "./datax",
@@ -8130,7 +8130,7 @@ define('skylark-utils-dom/query',[
     "./geom",
     "./styler",
     "./fx"
-], function(skylark, langx, noder, datax, eventer, finder, geom, styler, fx) {
+], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx) {
     var some = Array.prototype.some,
         push = Array.prototype.push,
         every = Array.prototype.every,
@@ -9070,11 +9070,11 @@ define('skylark-utils-dom/query',[
         return returnValue;
     };
 
-    return skylark.query = query;
+    return dom.query = query;
 
 });
 define('skylark-utils-dom/images',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./eventer",
     "./noder",
@@ -9084,7 +9084,7 @@ define('skylark-utils-dom/images',[
     "./datax",
     "./transforms",
     "./query"
-], function(skylark,langx,eventer,noder,finder,geom,styler,datax,transforms,$) {
+], function(dom,langx,eventer,noder,finder,geom,styler,datax,transforms,$) {
 
   function watch(imgs) {
     if (!langx.isArray(imgs)) {
@@ -9345,11 +9345,11 @@ define('skylark-utils-dom/images',[
     viewer : viewer
   });
 
-  return skylark.images = images;
+  return dom.images = images;
 });
 
 define('skylark-utils-dom/velm',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./datax",
     "./eventer",
@@ -9358,7 +9358,7 @@ define('skylark-utils-dom/velm',[
     "./geom",
     "./noder",
     "./styler"
-], function(skylark, langx, datax, eventer, finder, fx, geom, noder, styler) {
+], function(dom, langx, datax, eventer, finder, fx, geom, noder, styler) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -9614,10 +9614,10 @@ define('skylark-utils-dom/velm',[
     });
 
 
-    return skylark.velm = velm;
+    return dom.velm = velm;
 });
 define('skylark-utils-dom/plugins',[
-    "skylark-langx/skylark",
+    "./dom",
     "skylark-langx/klass",
     "./langx",
     "./noder",
@@ -9916,11 +9916,11 @@ define('skylark-utils-dom/plugins',[
     return plugins;
 });
 define('skylark-utils-dom/scripter',[
-    "./skylark",
+    "./dom",
     "./langx",
     "./noder",
     "./finder"
-], function(skylark, langx, noder, finder) {
+], function(dom, langx, noder, finder) {
 
     var head = document.getElementsByTagName('head')[0],
         scriptsByUrl = {},
@@ -10009,10 +10009,10 @@ define('skylark-utils-dom/scripter',[
         }
     });
 
-    return skylark.scripter = scripter;
+    return dom.scripter = scripter;
 });
 define('skylark-utils-dom/main',[
-    "./skylark",
+    "./dom",
     "./browser",
     "./css",
     "./datax",
@@ -10029,8 +10029,8 @@ define('skylark-utils-dom/main',[
     "./transforms",
     "./langx",
     "./velm"
-], function(skylark) {
-    return skylark;
+], function(dom) {
+    return dom;
 })
 ;
 define('skylark-utils-dom', ['skylark-utils-dom/main'], function (main) { return main; });

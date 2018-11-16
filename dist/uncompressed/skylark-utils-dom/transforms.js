@@ -1,10 +1,10 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./browser",
     "./datax",
     "./styler"
-], function(skylark,langx,browser,datax,styler) {
+], function(dom,langx,browser,datax,styler) {
   var css3Transform = browser.normalizeCssProperty("transform");
 
   function getMatrix(radian, x, y) {
@@ -126,5 +126,5 @@ define([
   });
 
 
-  return skylark.transforms = transforms;
+  return dom.transforms = transforms;
 });

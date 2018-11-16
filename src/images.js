@@ -1,5 +1,5 @@
 define([
-    "./skylark",
+    "./dom",
     "./langx",
     "./eventer",
     "./noder",
@@ -9,7 +9,7 @@ define([
     "./datax",
     "./transforms",
     "./query"
-], function(skylark,langx,eventer,noder,finder,geom,styler,datax,transforms,$) {
+], function(dom,langx,eventer,noder,finder,geom,styler,datax,transforms,$) {
 
   function watch(imgs) {
     if (!langx.isArray(imgs)) {
@@ -270,5 +270,5 @@ define([
     viewer : viewer
   });
 
-  return skylark.images = images;
+  return dom.images = images;
 });
