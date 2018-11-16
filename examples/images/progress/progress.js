@@ -17,7 +17,7 @@ document.querySelector('#add').onclick = function() {
   var fragment = getItemsFragment();
   container.insertBefore( fragment, container.firstChild );
   // use ImagesLoaded
-  var imgLoad = skylarkjs.images.loaded( container );
+  var imgLoad = skylarkjs.dom.images.loaded( container );
   imgLoad.progress(onProgress );
   imgLoad.always( onAlways );
   // reset progress counter

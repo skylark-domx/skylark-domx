@@ -15,7 +15,7 @@ define([
     "./styler",
     "./transforms",
     "./langx",
-    "./velm"
+    "./elmx"
 ], function(dom) {
     return dom;
 })

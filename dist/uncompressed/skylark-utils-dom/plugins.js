@@ -1,6 +1,5 @@
 define([
     "./dom",
-    "skylark-langx/klass",
     "./langx",
     "./noder",
     "./datax",
@@ -10,8 +9,8 @@ define([
     "./styler",
     "./fx",
     "./query",
-    "./velm"
-], function(skylark, klass, langx, noder, datax, eventer, finder, geom, styler, fx, $, velm) {
+    "./elmx"
+], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx, $, elmx) {
     "use strict";
 
 	var slice = Array.prototype.slice,
@@ -28,7 +27,7 @@ define([
         pluginKlasses[name] = pluginKlass;
 
         if (shortcut) {
-            velm.partial(shortcut,$.fn[shortcut] = function(options) {
+            elmx.partial(shortcut,$.fn[shortcut] = function(options) {
                 var args = slice.call(arguments,0);
                 args.unshift(name);
                 return this.plugin.apply(this,args);
@@ -276,7 +275,7 @@ define([
         return returnValue;
     };
 
-    velm.partial("plugin",function(name,options) {
+    elmx.partial("plugin",function(name,options) {
         var args = slice.call( arguments, 1 );
         return instantiate.apply(this,[this,name].concat(args));
     }); 

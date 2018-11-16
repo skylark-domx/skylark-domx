@@ -80,7 +80,11 @@
 
 })(function(define,require) {
 
-define('skylark-utils-dom/dom',["./dom"], function(skylark) {
+define('skylark-utils-dom/skylark',["skylark-langx/skylark"], function(skylark) {
+    return skylark;
+});
+
+define('skylark-utils-dom/dom',["./skylark"], function(skylark) {
 	return skylark.dom = {};
 });
 
@@ -6520,7 +6524,7 @@ define('skylark-utils-dom/images',[
   return dom.images = images;
 });
 
-define('skylark-utils-dom/velm',[
+define('skylark-utils-dom/elmx',[
     "./dom",
     "./langx",
     "./datax",
@@ -6551,7 +6555,7 @@ define('skylark-utils-dom/velm',[
      * the VisualElement object wrapping document.body
      */
     var root = new VisualElement(document.body),
-        velm = function(node) {
+        elmx = function(node) {
             if (node) {
                 return new VisualElement(node);
             } else {
@@ -6590,10 +6594,10 @@ define('skylark-utils-dom/velm',[
         };
     }
 
-    langx.mixin(velm, {
+    langx.mixin(elmx, {
         batch: function(nodes, action, args) {
             nodes.forEach(function(node) {
-                var elm = (node instanceof VisualElement) ? node : velm(node);
+                var elm = (node instanceof VisualElement) ? node : elmx(node);
                 elm[action].apply(elm, args);
             });
 
@@ -6624,7 +6628,7 @@ define('skylark-utils-dom/velm',[
     });
 
     // from ./datax
-    velm.delegate([
+    elmx.delegate([
         "attr",
         "data",
         "prop",
@@ -6635,7 +6639,7 @@ define('skylark-utils-dom/velm',[
     ], datax);
 
     // from ./eventer
-    velm.delegate([
+    elmx.delegate([
         "off",
         "on",
         "one",
@@ -6644,7 +6648,7 @@ define('skylark-utils-dom/velm',[
     ], eventer);
 
     // from ./finder
-    velm.delegate([
+    elmx.delegate([
         "ancestor",
         "ancestors",
         "children",
@@ -6666,7 +6670,7 @@ define('skylark-utils-dom/velm',[
      * find a dom element matched by the specified selector.
      * @param {String} selector
      */
-    velm.find = function(selector) {
+    elmx.find = function(selector) {
         if (selector === "body") {
             return this.root;
         } else {
@@ -6675,7 +6679,7 @@ define('skylark-utils-dom/velm',[
     };
 
     // from ./fx
-    velm.delegate([
+    elmx.delegate([
         "animate",
         "fadeIn",
         "fadeOut",
@@ -6689,7 +6693,7 @@ define('skylark-utils-dom/velm',[
 
 
     // from ./geom
-    velm.delegate([
+    elmx.delegate([
         "borderExtents",
         "boundingPosition",
         "boundingRect",
@@ -6713,7 +6717,7 @@ define('skylark-utils-dom/velm',[
     ], geom);
 
     // from ./noder
-    velm.delegate([
+    elmx.delegate([
         "after",
         "append",
         "before",
@@ -6737,7 +6741,7 @@ define('skylark-utils-dom/velm',[
     ], noder);
 
     // from ./styler
-    velm.delegate([
+    elmx.delegate([
         "addClass",
         "className",
         "css",
@@ -6786,11 +6790,10 @@ define('skylark-utils-dom/velm',[
     });
 
 
-    return dom.velm = velm;
+    return dom.elmx = elmx;
 });
 define('skylark-utils-dom/plugins',[
     "./dom",
-    "skylark-langx/klass",
     "./langx",
     "./noder",
     "./datax",
@@ -6800,8 +6803,8 @@ define('skylark-utils-dom/plugins',[
     "./styler",
     "./fx",
     "./query",
-    "./velm"
-], function(skylark, klass, langx, noder, datax, eventer, finder, geom, styler, fx, $, velm) {
+    "./elmx"
+], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx, $, elmx) {
     "use strict";
 
 	var slice = Array.prototype.slice,
@@ -6818,7 +6821,7 @@ define('skylark-utils-dom/plugins',[
         pluginKlasses[name] = pluginKlass;
 
         if (shortcut) {
-            velm.partial(shortcut,$.fn[shortcut] = function(options) {
+            elmx.partial(shortcut,$.fn[shortcut] = function(options) {
                 var args = slice.call(arguments,0);
                 args.unshift(name);
                 return this.plugin.apply(this,args);
@@ -7066,7 +7069,7 @@ define('skylark-utils-dom/plugins',[
         return returnValue;
     };
 
-    velm.partial("plugin",function(name,options) {
+    elmx.partial("plugin",function(name,options) {
         var args = slice.call( arguments, 1 );
         return instantiate.apply(this,[this,name].concat(args));
     }); 
@@ -7200,7 +7203,7 @@ define('skylark-utils-dom/main',[
     "./styler",
     "./transforms",
     "./langx",
-    "./velm"
+    "./elmx"
 ], function(dom) {
     return dom;
 })

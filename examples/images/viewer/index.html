@@ -61,7 +61,7 @@
 				loaded: function(){ $("#idContainer").css('background-image', ''); },
 				failered: function(err){ $("#idContainer").css('background-image', ''); alert(err); }
 			};
-		var it = skylarkjs.images.viewer($("#idContainer")[0], options); 
+		var it = skylarkjs.dom.images.viewer($("#idContainer")[0], options); 
 			
 		it.load(src);
 		$("#btnZoomOut").on( "click", function(){ it.zoomout(); })
