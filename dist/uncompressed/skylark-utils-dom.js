@@ -6807,7 +6807,7 @@ define('skylark-utils-dom/plugins',[
 ], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx, $, elmx) {
     "use strict";
 
-	var slice = Array.prototype.slice,
+    var slice = Array.prototype.slice,
         concat = Array.prototype.concat,
         pluginKlasses = {};
 
@@ -6908,7 +6908,7 @@ define('skylark-utils-dom/plugins',[
               }
             }
           }
-          return this.options = langx.mixin(defaults,options);
+          return this.options = langx.mixin({},defaults,options);
         },
 
 
@@ -7016,7 +7016,7 @@ define('skylark-utils-dom/plugins',[
      
     langx.mixin(plugins, {
         instantiate : instantiate,
-    	
+        
         Plugin : Plugin,
 
         register : register
