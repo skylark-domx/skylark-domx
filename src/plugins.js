@@ -77,67 +77,19 @@ define([
                 pluginInstance.option( options || {} );
             } else {
                 var pluginKlass = pluginKlasses[pluginName]; 
-                datax.data( elm, pluginName, new pluginKlass( options, elm ) );
+                datax.data( elm, pluginName, new pluginKlass(elm,options));
             }
         }
 
         return returnValue;
     }
 
-    var pluginUuid = 0;
     var Plugin =   langx.Evented.inherit({
         klassName: "Plugin",
 
-        pluginEventPrefix: "",
-
-        options: {
-            // Callbacks
-            create: null
-        },
-
-        _construct : function(options,element) {
-            //this.options = langx.mixin( {}, this.options );
-
-            element = $( element || this.defaultElement || this )[ 0 ];
-            this._elm = element;
-            
-            this.element = $( element );
-            this.uuid = pluginUuid++;
-            this.eventNamespace = "." + this.pluginName + this.uuid;
-
-            this.bindings = $();
-            this.classesElementLookup = {};
-
-            if ( element !== this ) {
-                datax.data( element, this.pluginName, this );
-                this._on( true, this.element, {
-                    remove: function( event ) {
-                        if ( event.target === element ) {
-                            this.destroy();
-                        }
-                    }
-                } );
-                this.document = $( element.style ?
-
-                    // Element within the document
-                    element.ownerDocument :
-
-                    // Element is window or document
-                    element.document || element );
-                this.window = $( this.document[ 0 ].defaultView || this.document[ 0 ].parentWindow );
-            }
-
-//            this.options = langx.mixin( {},
-//                this.options,
-//                this._getCreateOptions(),
-//                options );
-            this._initOptions(options);
-
-            this._create();
-
-            this._trigger( "create", null, this._getCreateEventData() );
-
-            this._init();
+        _construct : function(elm,options) {
+           this._elm = elm;
+           this._initOptions(options);
         },
 
         _initOptions : function(options) {
@@ -165,15 +117,6 @@ define([
           return this.options = langx.mixin(defaults,options);
         },
 
-//        _getCreateOptions: function() {
-//            return {};
-//        },
-
-        _getCreateEventData: langx.noop,
-
-        _create: langx.noop,
-
-        _init: langx.noop,
 
         destroy: function() {
             var that = this;
@@ -181,15 +124,7 @@ define([
             this._destroy();
             // We can probably remove the unbind calls in 2.0
             // all event bindings should go through this._on()
-            this.element
-                .off( this.eventNamespace )
-                .removeData( this.pluginName );
-            this.plugin()
-                .off( this.eventNamespace )
-                .removeAttr( "aria-disabled" );
-
-            // Clean up events and states
-            this.bindings.off( this.eventNamespace );
+            datax.removeData(this._elm,this.pluginName );
         },
 
         _destroy: langx.noop,
@@ -260,7 +195,7 @@ define([
             this.options[ key ] = value;
 
             return this;
-        },
+        }
 
     });
 
