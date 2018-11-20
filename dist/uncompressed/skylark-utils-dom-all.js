@@ -6366,7 +6366,7 @@ define('skylark-utils-dom/eventer',[
 
     }
 
-    if (browser.support.transitionEnd) {
+    if (browser.support.transition) {
         specialEvents.transitionEnd = {
 //          handle: function (e) {
 //            if ($(e.target).is(this)) return e.handleObj.handler.apply(this, arguments)
