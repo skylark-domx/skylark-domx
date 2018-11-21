@@ -6877,8 +6877,9 @@ define('skylark-utils-dom/plugins',[
                 pluginInstance.option( options || {} );
             } else {
                 var pluginKlass = pluginKlasses[pluginName]; 
-                datax.data( elm, pluginName, new pluginKlass(elm,options));
+                pluginInstance = datax.data( elm, pluginName, new pluginKlass(elm,options));
             }
+            return pluginInstance;
         }
 
         return returnValue;
@@ -7012,7 +7013,7 @@ define('skylark-utils-dom/plugins',[
 
     elmx.partial("plugin",function(name,options) {
         var args = slice.call( arguments, 1 );
-        return instantiate.apply(this,[this,name].concat(args));
+        return instantiate.apply(this,[this.domNode,name].concat(args));
     }); 
 
 
