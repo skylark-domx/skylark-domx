@@ -6533,8 +6533,9 @@ define('skylark-utils-dom/elmx',[
     "./fx",
     "./geom",
     "./noder",
-    "./styler"
-], function(dom, langx, datax, eventer, finder, fx, geom, noder, styler) {
+    "./styler",
+    "./query"
+], function(dom, langx, datax, eventer, finder, fx, geom, noder, styler,$) {
     var map = Array.prototype.map,
         slice = Array.prototype.slice;
     /*
@@ -6551,6 +6552,11 @@ define('skylark-utils-dom/elmx',[
             this.domNode = node;
         }
     });
+
+    VisualElement.$ = VisualElement.query = function(selector) {
+        return $(selector,this.domNode);
+    };
+
     /*
      * the VisualElement object wrapping document.body
      */
@@ -6582,7 +6588,7 @@ define('skylark-utils-dom/elmx',[
                     } else if (langx.isArrayLike(ret)) {
                         ret = map.call(ret, function(el) {
                             if (el instanceof HTMLElement) {
-                                return new VisualElement(ret);
+                                return new VisualElement(el);
                             } else {
                                 return el;
                             }
