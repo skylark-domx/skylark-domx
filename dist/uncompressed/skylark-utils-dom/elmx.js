@@ -27,7 +27,7 @@ define([
         }
     });
 
-    VisualElement.$ = VisualElement.query = function(selector) {
+    VisualElement.prototype.$ = VisualElement.prototype.query = function(selector) {
         return $(selector,this.domNode);
     };
 

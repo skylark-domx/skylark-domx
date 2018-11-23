@@ -6553,7 +6553,7 @@ define('skylark-utils-dom/elmx',[
         }
     });
 
-    VisualElement.$ = VisualElement.query = function(selector) {
+    VisualElement.prototype.$ = VisualElement.prototype.query = function(selector) {
         return $(selector,this.domNode);
     };
 
@@ -6877,7 +6877,8 @@ define('skylark-utils-dom/plugins',[
                 pluginInstance.option( options || {} );
             } else {
                 var pluginKlass = pluginKlasses[pluginName]; 
-                pluginInstance = datax.data( elm, pluginName, new pluginKlass(elm,options));
+                pluginInstance = new pluginKlass(elm,options);
+                datax.data( elm, pluginName,pluginInstance );
             }
             return pluginInstance;
         }
