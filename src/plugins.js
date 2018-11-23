@@ -77,7 +77,8 @@ define([
                 pluginInstance.option( options || {} );
             } else {
                 var pluginKlass = pluginKlasses[pluginName]; 
-                pluginInstance = datax.data( elm, pluginName, new pluginKlass(elm,options));
+                pluginInstance = new pluginKlass(elm,options);
+                datax.data( elm, pluginName,pluginInstance );
             }
             return pluginInstance;
         }
