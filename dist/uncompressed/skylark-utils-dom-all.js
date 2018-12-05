@@ -9742,9 +9742,17 @@ define('skylark-utils-dom/plugins',[
               if (ctor.prototype.hasOwnProperty("options")) {
                 langx.mixin(defaults,ctor.prototype.options);
               }
+              if (ctor.hasOwnProperty("options")) {
+                langx.mixin(defaults,ctor.options);
+              }
             }
           }
-          return this.options = langx.mixin({},defaults,options);
+          Object.defineProperty(this,"options",{
+            value :langx.mixin({},defaults,options)
+          });
+
+          //return this.options = langx.mixin({},defaults,options);
+          return this.options;
         },
 
 
