@@ -439,8 +439,6 @@ define([
                 return ret;
             },
             
-            show: wrapper_every_act(fx.show, fx),
-
             replaceWith: function(newContent) {
                 return this.before(newContent).remove();
             },
@@ -782,6 +780,7 @@ define([
         };
 
         $.fn.animate = wrapper_every_act(fx.animate, fx);
+        $.fn.emulateTransitionEnd = wrapper_every_act(fx.emulateTransitionEnd, fx);
 
         $.fn.show = wrapper_every_act(fx.show, fx);
         $.fn.hide = wrapper_every_act(fx.hide, fx);

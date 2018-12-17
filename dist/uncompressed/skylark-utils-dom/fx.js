@@ -413,7 +413,7 @@ define([
         });
 
         return this;
-    };
+    }
 
     /*   
      * Hide an element with a sliding motion.
@@ -475,7 +475,7 @@ define([
             });
         }
         return this;
-    };
+    }
 
 
     /*   
@@ -495,8 +495,22 @@ define([
             slideUp(elm, duration, callback);
         }
         return this;
-    };
+    }
 
+    function emulateTransitionEnd(elm,duration) {
+        var called = false;
+        eventer.one('transitionEnd', function () { 
+            called = true;
+        })
+        var callback = function () { 
+            if (!called) {
+                eventer.trigger(el,browser.support.transition.end) 
+            }
+        };
+        setTimeout(callback, duration);
+        
+        return this;
+    } 
 
     function fx() {
         return fx;
@@ -511,19 +525,20 @@ define([
             slow: 600
         },
 
-        animate: animate,
-        fadeIn: fadeIn,
-        fadeOut: fadeOut,
-        fadeTo: fadeTo,
-        fadeToggle: fadeToggle,
-        hide: hide,
-        scrollToTop: scrollToTop,
+        animate,
+        emulateTransitionEnd,
+        fadeIn,
+        fadeOut,
+        fadeTo,
+        fadeToggle,
+        hide,
+        scrollToTop,
 
-        slideDown: slideDown,
-        slideToggle: slideToggle,
-        slideUp: slideUp,
-        show: show,
-        toggle: toggle
+        slideDown,
+        slideToggle,
+        slideUp,
+        show,
+        toggle
     });
 
     return dom.fx = fx;
