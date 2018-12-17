@@ -23,12 +23,12 @@ define([
             if (langx.isString(node)) {
                 node = document.getElementById(node);
             }
-            this.domNode = node;
+            this._elm = node;
         }
     });
 
     VisualElement.prototype.$ = VisualElement.prototype.query = function(selector) {
-        return $(selector,this.domNode);
+        return $(selector,this._elm);
     };
 
     /*
@@ -50,7 +50,7 @@ define([
     function _delegator(fn, context) {
         return function() {
             var self = this,
-                elem = self.domNode,
+                elem = self._elm,
                 ret = fn.apply(context, [elem].concat(slice.call(arguments)));
 
             if (ret) {
