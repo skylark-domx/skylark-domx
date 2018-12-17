@@ -7964,12 +7964,12 @@ define('skylark-utils-dom/fx',[
 
     function emulateTransitionEnd(elm,duration) {
         var called = false;
-        eventer.one('transitionEnd', function () { 
+        eventer.one(elm,'transitionEnd', function () { 
             called = true;
         })
         var callback = function () { 
             if (!called) {
-                eventer.trigger(el,browser.support.transition.end) 
+                eventer.trigger(elm,'transitionEnd') 
             }
         };
         setTimeout(callback, duration);
