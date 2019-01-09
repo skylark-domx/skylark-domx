@@ -287,7 +287,7 @@ define('skylark-utils-dom/styler',[
         if (!elementDisplay[nodeName]) {
             element = document.createElement(nodeName)
             document.body.appendChild(element)
-            display = getComputedStyle(element, '').getPropertyValue("display")
+            display = getStyles(element).getPropertyValue("display")
             element.parentNode.removeChild(element)
             display == "none" && (display = "block")
             elementDisplay[nodeName] = display
@@ -344,6 +344,22 @@ define('skylark-utils-dom/styler',[
 
         return this;
     }
+
+    function getStyles( elem ) {
+
+        // Support: IE <=11 only, Firefox <=30 (#15098, #14150)
+        // IE throws on elements created in popups
+        // FF meanwhile throws on frame elements through "defaultView.getComputedStyle"
+        var view = elem.ownerDocument.defaultView;
+
+        if ( !view || !view.opener ) {
+            view = window;
+        }
+
+        return view.getComputedStyle( elem);
+    }
+
+
     /*
      * Get the value of a computed style property for the first element in the set of matched elements or set one or more CSS properties for every matched element.
      * @param {HTMLElement} elm
@@ -353,7 +369,7 @@ define('skylark-utils-dom/styler',[
     function css(elm, property, value) {
         if (arguments.length < 3) {
             var computedStyle,
-                computedStyle = getComputedStyle(elm, '')
+                computedStyle = getStyles(elm)
             if (langx.isString(property)) {
                 return elm.style[camelCase(property)] || computedStyle.getPropertyValue(dasherize(property))
             } else if (langx.isArrayLike(property)) {
@@ -5542,7 +5558,7 @@ define('skylark-utils-dom/query',[
                         nodes = finder.descendants(context, selector);
                     }
                 } else {
-                    if (isArray(selector)) {
+                    if (isArrayLike(selector)) {
                         // a dom node array is expected
                         nodes = selector;
                     } else {
@@ -7221,3 +7237,4 @@ define('skylark-utils-dom', ['skylark-utils-dom/main'], function (main) { return
 
 
 },this);
+//# sourceMappingURL=sourcemaps/skylark-utils-dom.js.map

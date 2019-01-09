@@ -229,7 +229,7 @@ define([
                         nodes = finder.descendants(context, selector);
                     }
                 } else {
-                    if (isArray(selector)) {
+                    if (isArrayLike(selector)) {
                         // a dom node array is expected
                         nodes = selector;
                     } else {

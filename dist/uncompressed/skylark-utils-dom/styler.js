@@ -60,7 +60,7 @@ define([
         if (!elementDisplay[nodeName]) {
             element = document.createElement(nodeName)
             document.body.appendChild(element)
-            display = getComputedStyle(element, '').getPropertyValue("display")
+            display = getStyles(element).getPropertyValue("display")
             element.parentNode.removeChild(element)
             display == "none" && (display = "block")
             elementDisplay[nodeName] = display
@@ -117,6 +117,22 @@ define([
 
         return this;
     }
+
+    function getStyles( elem ) {
+
+        // Support: IE <=11 only, Firefox <=30 (#15098, #14150)
+        // IE throws on elements created in popups
+        // FF meanwhile throws on frame elements through "defaultView.getComputedStyle"
+        var view = elem.ownerDocument.defaultView;
+
+        if ( !view || !view.opener ) {
+            view = window;
+        }
+
+        return view.getComputedStyle( elem);
+    }
+
+
     /*
      * Get the value of a computed style property for the first element in the set of matched elements or set one or more CSS properties for every matched element.
      * @param {HTMLElement} elm
@@ -126,7 +142,7 @@ define([
     function css(elm, property, value) {
         if (arguments.length < 3) {
             var computedStyle,
-                computedStyle = getComputedStyle(elm, '')
+                computedStyle = getStyles(elm)
             if (langx.isString(property)) {
                 return elm.style[camelCase(property)] || computedStyle.getPropertyValue(dasherize(property))
             } else if (langx.isArrayLike(property)) {
