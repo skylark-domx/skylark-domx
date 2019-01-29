@@ -3,6 +3,8 @@ define([
     "./langx"
 ], function(dom,langx) {
     "use strict";
+
+    var browser = langx.hoster.browser;
  
     var checkedCssProperties = {
             "transitionproperty": "TransitionProperty",
@@ -85,10 +87,6 @@ define([
 
     function normalizeStyleProperty(name) {
         return cssStyles[name] || name;
-    }
-
-    function browser() {
-        return browser;
     }
 
     langx.mixin(browser, {
