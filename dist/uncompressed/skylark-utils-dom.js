@@ -6854,7 +6854,15 @@ define('skylark-utils-dom/plugins',[
      * Create or get or destory a plugin instance assocated with the element.
      */
     function instantiate(elm,pluginName,options) {
-        var pluginInstance = datax.data( elm, pluginName );
+        var pair = pluginName.split(":"),
+            instanceDataName = pair[1];
+        pluginName = pair[0];
+
+        if (!instanceDataName) {
+            instanceDataName = pluginName;
+        }
+
+        var pluginInstance = datax.data( elm, instanceDataName );
 
         if (options === "instance") {
             return pluginInstance;
@@ -6872,7 +6880,7 @@ define('skylark-utils-dom/plugins',[
                 }
                 var pluginKlass = pluginKlasses[pluginName]; 
                 pluginInstance = new pluginKlass(elm,options);
-                datax.data( elm, pluginName,pluginInstance );
+                datax.data( elm, instanceDataName,pluginInstance );
             } else if (options) {
                 pluginInstance.reset(options);
             }
@@ -6896,7 +6904,7 @@ define('skylark-utils-dom/plugins',[
             }
 
             if (options) {
-                var args = slice.call(arguments,1);
+                var args = slice.call(arguments,2);
                 if (extfn) {
                     return extfn.apply(plugin,args);
                 } else {
@@ -6914,7 +6922,7 @@ define('skylark-utils-dom/plugins',[
                                 " plugin instance" );
                         }
 
-                        plugin[methodName].apply(plugin,args);
+                        return plugin[methodName].apply(plugin,args);
                     }                
                 }                
             }
@@ -6926,12 +6934,20 @@ define('skylark-utils-dom/plugins',[
     /*
      * Register a plugin type
      */
-    function register( pluginKlass,shortcutName,extfn) {
+    function register( pluginKlass,shortcutName,instanceDataName,extfn) {
         var pluginName = pluginKlass.prototype.pluginName;
         
         pluginKlasses[pluginName] = pluginKlass;
 
         if (shortcutName) {
+            if (instanceDataName && langx.isFunction(instanceDataName)) {
+                extfn = instanceDataName;
+                instanceDataName = null;
+            } 
+            if (instanceDataName) {
+                pluginName = pluginName + ":" + instanceDataName;
+            }
+
             var shortcut = shortcuts[shortcutName] = shortcutter(pluginName,extfn);
                 
             $.fn[shortcutName] = function(options) {
@@ -6940,8 +6956,11 @@ define('skylark-utils-dom/plugins',[
                 if ( !this.length && options === "instance" ) {
                   returnValue = undefined;
                 } else {
+                  var args = slice.call(arguments);
                   this.each(function () {
-                    var  ret  = shortcut(this,options);
+                    var args2 = slice.call(args);
+                    args2.unshift(this);
+                    var  ret  = shortcut.apply(null,args2);
                     if (ret !== undefined) {
                         returnValue = ret;
                         return false;
