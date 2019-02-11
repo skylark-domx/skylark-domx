@@ -19,9 +19,15 @@ define([
     var VisualElement = langx.klass({
         klassName: "VisualElement",
 
-        "init": function(node) {
+        "_construct": function(node) {
             if (langx.isString(node)) {
-                node = document.getElementById(node);
+                if (selector.charAt(0) === "<") {
+                    //html
+                    node = noder.createFragment(node)[0];
+                } else {
+                    // id
+                    node = document.getElementById(node);
+                }
             }
             this._elm = node;
         }
@@ -157,6 +163,8 @@ define([
             return this.root.descendant(selector);
         }
     };
+
+    elmx.
 
     // from ./fx
     elmx.delegate([
