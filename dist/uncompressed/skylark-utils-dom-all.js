@@ -10143,8 +10143,6 @@ define('skylark-utils-dom/elmx',[
         }
     };
 
-    elmx.
-
     // from ./fx
     elmx.delegate([
         "animate",

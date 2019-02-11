@@ -164,8 +164,6 @@ define([
         }
     };
 
-    elmx.
-
     // from ./fx
     elmx.delegate([
         "animate",
