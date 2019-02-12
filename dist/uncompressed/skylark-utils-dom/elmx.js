@@ -21,7 +21,7 @@ define([
 
         "_construct": function(node) {
             if (langx.isString(node)) {
-                if (selector.charAt(0) === "<") {
+                if (node.charAt(0) === "<") {
                     //html
                     node = noder.createFragment(node)[0];
                 } else {
