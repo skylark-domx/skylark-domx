@@ -10082,6 +10082,10 @@ define('skylark-utils-dom/elmx',[
         return $(selector,this._elm);
     };
 
+    VisualElement.prototype.elm = function() {
+        return this._elm;
+    };
+
     /*
      * the VisualElement object wrapping document.body
      */
