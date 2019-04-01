@@ -306,6 +306,8 @@ define('skylark-langx/types',[
 
         isNumber: isNumber,
 
+        isNumeric: isNumber,
+
         isObject: isObject,
 
         isPlainObject: isPlainObject,
@@ -1041,8 +1043,6 @@ define('skylark-langx/objects',[
         return values;
     }
 
-
-    
     function clone( /*anything*/ src,checkCloneMethod) {
         var copy;
         if (src === undefined || src === null) {
@@ -3462,6 +3462,36 @@ define('skylark-langx/Stateful',[
 
 	return Stateful;
 });
+define('skylark-langx/topic',[
+	"./Evented"
+],function(Evented){
+	var hub = new Evented();
+
+	return {
+	    publish: function(name, arg1,argn) {
+	        var data = [].slice.call(arguments, 1);
+
+	        return hub.trigger({
+	            type : name,
+	            data : data
+	        });
+	    },
+
+        subscribe: function(name, listener,ctx) {
+        	var handler = function(e){
+                listener.apply(ctx,e.data);
+            };
+            hub.on(name, handler);
+            return {
+            	remove : function(){
+            		hub.off(name,handler);
+            	}
+            }
+
+        }
+
+	}
+});
 define('skylark-langx/langx',[
     "./skylark",
     "./arrays",
@@ -3479,9 +3509,10 @@ define('skylark-langx/langx',[
     "./Restful",
     "./Stateful",
     "./strings",
+    "./topic",
     "./types",
     "./Xhr"
-], function(skylark,arrays,ArrayStore,aspect,async,datetimes,Deferred,Evented,funcs,hoster,klass,numbers,objects,Restful,Stateful,strings,types,Xhr) {
+], function(skylark,arrays,ArrayStore,aspect,async,datetimes,Deferred,Evented,funcs,hoster,klass,numbers,objects,Restful,Stateful,strings,types,topic,Xhr) {
     "use strict";
     var toString = {}.toString,
         concat = Array.prototype.concat,
@@ -3568,6 +3599,8 @@ define('skylark-langx/langx',[
         Restful: Restful,
         
         Stateful: Stateful,
+
+        topic : topic,
 
         Xhr: Xhr
 
