@@ -7129,6 +7129,10 @@ define('skylark-utils-dom/plugins',[
             this.options[ key ] = value;
 
             return this;
+        },
+
+        elm : function() {
+            return this._elm;
         }
 
     });
