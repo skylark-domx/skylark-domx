@@ -754,6 +754,10 @@ define([
                     if (matches(node, root)) {
                         break;
                     }
+                } else if (langx.isArrayLike(root)) {
+                    if (langx.inArray(node,root)) {
+                        break;
+                    }
                 } else if (node == root) {
                     break;
                 }
