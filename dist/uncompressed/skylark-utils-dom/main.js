@@ -1,7 +1,6 @@
 define([
     "./dom",
     "./browser",
-    "./contents",
     "./css",
     "./datax",
     "./eventer",
