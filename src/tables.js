@@ -36,21 +36,21 @@ define([
   }
 
   function createTable(row, col, phBr) {
-  	var $table, $tbody, $td, $thead, $tr, c, k, l, r, ref, ref1;
-  	$table = $('<table/>');
- 		$thead = $('<thead/>').appendTo($table);
-  	$tbody = $('<tbody/>').appendTo($table);
-  	for (r = k = 0, ref = row; 0 <= ref ? k < ref : k > ref; r = 0 <= ref ? ++k : --k) {
-    		$tr = $('<tr/>');
-    		$tr.appendTo(r === 0 ? $thead : $tbody);
-    		for (c = l = 0, ref1 = col; 0 <= ref1 ? l < ref1 : l > ref1; c = 0 <= ref1 ? ++l : --l) {
-     			$td = $(r === 0 ? '<th/>' : '<td/>').appendTo($tr);
-      		if (phBr) {
-        			$td.append(phBr);
-      		}
-    		}
-  	}		
-  	return $table[0];
+    var $table, $tbody, $td, $thead, $tr, c, k, l, r, ref, ref1;
+    $table = $('<table/>');
+    $thead = $('<thead/>').appendTo($table);
+    $tbody = $('<tbody/>').appendTo($table);
+    for (r = k = 0, ref = row; 0 <= ref ? k < ref : k > ref; r = 0 <= ref ? ++k : --k) {
+        $tr = $('<tr/>');
+        $tr.appendTo(r === 0 ? $thead : $tbody);
+        for (c = l = 0, ref1 = col; 0 <= ref1 ? l < ref1 : l > ref1; c = 0 <= ref1 ? ++l : --l) {
+          $td = $(r === 0 ? '<th/>' : '<td/>').appendTo($tr);
+          if (phBr) {
+              $td.append(phBr);
+          }
+        }
+    }   
+    return $table[0];
   }
     
 
@@ -242,6 +242,89 @@ define([
     })(this), 0);
   }
 
+
+  function resizable(container,options) {
+    var cssClasses = options.cssClasses,
+        clsResizeHandle = cssClasses.resizeHandle, // simditor-resize-handle
+        clsWrapper = cssClasses.wrapper, // .simditor-table
+        selectorWrapper = "." + clsWrapper,
+        selectorResizeHandle = "." + clsResizeHandle;
+
+    $(container).on('mousemove.table', selectorWrapper +' td, ' + selectorWrapper +' th', function(e) {
+      var $col, $colgroup, $resizeHandle, $td, $wrapper, index, ref, ref1, x;
+      $wrapper = $(this).parents(selectorWrapper);
+      $resizeHandle = $wrapper.find(selectorResizeHandle);
+      $colgroup = $wrapper.find('colgroup');
+      if ($wrapper.hasClass('resizing')) {
+        return;
+      }
+      $td = $(e.currentTarget);
+      x = e.pageX - $(e.currentTarget).offset().left;
+      if (x < 5 && $td.prev().length > 0) {
+        $td = $td.prev();
+      }
+      if ($td.next('td, th').length < 1) {
+        $resizeHandle.hide();
+        return;
+      }
+      if ((ref = $resizeHandle.data('td')) != null ? ref.is($td) : void 0) {
+        $resizeHandle.show();
+        return;
+      }
+      index = $td.parent().find('td, th').index($td);
+      $col = $colgroup.find('col').eq(index);
+      if ((ref1 = $resizeHandle.data('col')) != null ? ref1.is($col) : void 0) {
+        $resizeHandle.show();
+        return;
+      }
+      return $resizeHandle.css('left', $td.position().left + $td.outerWidth() - 5).data('td', $td).data('col', $col).show();
+    });
+
+    $(container).on('mouseleave'+ selectorWrapper, selectorWrapper, function(e) {
+      return $(this).find(selectorResizeHandle).hide();
+    });
+    return $(container).on('mousedown'+ selectorResizeHandle, selectorResizeHandle, function(e) {
+      var $handle, $leftCol, $leftTd, $rightCol, $rightTd, $wrapper, minWidth, startHandleLeft, startLeftWidth, startRightWidth, startX, tableWidth;
+      $wrapper = $(this).parent(selectorWrapper);
+      $handle = $(e.currentTarget);
+      $leftTd = $handle.data('td');
+      $leftCol = $handle.data('col');
+      $rightTd = $leftTd.next('td, th');
+      $rightCol = $leftCol.next('col');
+      startX = e.pageX;
+      startLeftWidth = $leftTd.outerWidth() * 1;
+      startRightWidth = $rightTd.outerWidth() * 1;
+      startHandleLeft = parseFloat($handle.css('left'));
+      tableWidth = $leftTd.closest(selectorWrapper).width();
+      minWidth = 50;
+      $(container).on('mousemove.resize-table', function(e) {
+        var deltaX, leftWidth, rightWidth;
+        deltaX = e.pageX - startX;
+        leftWidth = startLeftWidth + deltaX;
+        rightWidth = startRightWidth - deltaX;
+        if (leftWidth < minWidth) {
+          leftWidth = minWidth;
+          deltaX = minWidth - startLeftWidth;
+          rightWidth = startRightWidth - deltaX;
+        } else if (rightWidth < minWidth) {
+          rightWidth = minWidth;
+          deltaX = startRightWidth - minWidth;
+          leftWidth = startLeftWidth + deltaX;
+        }
+        $leftCol.attr('width', (leftWidth / tableWidth * 100) + '%');
+        $rightCol.attr('width', (rightWidth / tableWidth * 100) + '%');
+        return $handle.css('left', startHandleLeft + deltaX);
+      });
+      $(container).one('mouseup.resize-table', function(e) {
+        //$editor.sync();
+        $(container).off('.resize-table');
+        return $wrapper.removeClass('resizing');
+      });
+      $wrapper.addClass('resizing');
+      return false;
+    });
+  };
+
   function undecorate(table) {
     var $table = $(table);
     if (!($table.parent('.simditor-table').length > 0)) {
@@ -261,9 +344,10 @@ define([
     "insertCol" : insertCol,
     "insertRow" : insertRow,
     "refreshTableWidth" : refreshTableWidth,
+    "resizable" : resizable,
     "undecorate" : undecorate
   })
 
 
-	return dom.tables = tables;
+  return dom.tables = tables;
 });
