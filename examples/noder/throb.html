@@ -3,7 +3,7 @@
 
 <head>
     <style>
-    .throb {border: 3px solid #555;height: 50px; width: 50px; margin: 0 auto; position: absolute; top: 50%; left: 50%;
+    .throbber {border: 3px solid #555;height: 50px; width: 50px; margin: 0 auto; position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%);
         -webkit-border-radius: 50%;
         -webkit-animation: pulsate 2s ease-out;
@@ -56,9 +56,9 @@
     require.config({
         baseUrl: "./",
         packages: [{
-            name: "skylark-utils-dom",location: "../../dist/skylark-utils-dom"
+            name: "skylark-utils-dom",location: "../../src"
         }, {
-            name: "skylark-langx",location: "http://registry.skylarkjs.org/packages/skylark-langx/v0.9.0/uncompressed/skylark-langx"
+            name: "skylark-langx",location: "../../node_modules/skylark-langx/dist/uncompressed/skylark-langx"
         }]
     });
     </script>
@@ -82,6 +82,7 @@
             var throb = noder.throb(finder.byId("processing"), {
                 time: parseInt(query(this).text()) * 1000,
                 text: "waiting",
+                style: "border:1px",
                 callback: function() {
                     elm.style.opacity = 1;
                 }
