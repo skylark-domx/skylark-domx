@@ -504,7 +504,7 @@ define([
         })
         var callback = function () { 
             if (!called) {
-                eventer.trigger(elm,'transitionEnd') 
+                eventer.trigger(elm,browser.support.transition.end) 
             }
         };
         setTimeout(callback, duration);
