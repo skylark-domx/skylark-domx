@@ -324,7 +324,16 @@ define([
                 return this.length
             },
 
-            remove: wrapper_every_act(noder.remove, noder),
+            //remove: wrapper_every_act(noder.remove, noder),
+            remove : function(selector) {
+                if (selector) {
+                    return this.find(selector).remove();
+                }
+                this.each(function(i,node){
+                    noder.remove(node);
+                });
+                return this;
+            },
 
             each: function(callback) {
                 langx.each(this, callback);
@@ -668,7 +677,7 @@ define([
             return function(html) {
                 var argType, nodes = langx.map(arguments, function(arg) {
                     argType = type(arg)
-                    return argType == "object" || argType == "array" || arg == null ?
+                    return argType == "function" || argType == "object" || argType == "array" || arg == null ?
                         arg : noder.createFragment(arg)
                 });
                 if (nodes.length < 1) {
