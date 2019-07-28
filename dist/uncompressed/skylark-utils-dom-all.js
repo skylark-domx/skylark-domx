@@ -2780,7 +2780,7 @@ define('skylark-langx/hoster',[
 define('skylark-langx/strings',[
 ],function(){
     // add default escape function for escaping HTML entities
-    var escapeCharMap = freeze({
+    var escapeCharMap = Object.freeze({
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
@@ -3010,7 +3010,7 @@ define('skylark-langx/strings',[
         },
 
         rtrim : rtrim,
-        
+
         serializeValue: function(value) {
             return JSON.stringify(value)
         },
