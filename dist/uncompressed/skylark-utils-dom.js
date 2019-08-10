@@ -1304,7 +1304,12 @@ define('skylark-utils-dom/css',[
         return sheetId;
     }
 
-    function loadStyleSheet(url, options) {
+    function loadStyleSheet(url, options,loadedCallback, errorCallback) {
+        if (langx.isFunction(options)) {
+            errorCallback = loadedCallback;
+            loadedCallback = options;
+            options = {};
+        }
         var sheet = sheetsByUrl[url];
         if (!sheet) {
             var sheetId = _createStyleSheet(true,options);
@@ -1331,7 +1336,10 @@ define('skylark-utils-dom/css',[
 
             node.href = sheet.url;
         }
-        return sheet.deferred.promise;
+        if (loadedCallback || errorCallback) {
+            sheet.deferred.promise.then(loadedCallback,errorCallback);
+        }
+        return sheet.id;
     }
 
     function deleteSheetRule(sheetId, rule) {
@@ -1541,6 +1549,8 @@ define('skylark-utils-dom/css',[
         insertRule : insertRule,
 
         insertSheetRule : insertSheetRule,
+
+        loadStyleSheet : loadStyleSheet,
 
         removeStyleSheet : removeStyleSheet,
 
