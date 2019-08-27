@@ -684,6 +684,8 @@ define([
 
         isWindow: langx.isWindow,
 
+        nodeName : nodeName,
+
         offsetParent: offsetParent,
 
         ownerDoc: ownerDoc,
