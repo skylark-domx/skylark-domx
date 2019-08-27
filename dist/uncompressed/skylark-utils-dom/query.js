@@ -7,8 +7,9 @@ define([
     "./finder",
     "./geom",
     "./styler",
-    "./fx"
-], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx) {
+    "./fx",
+    "./scripter"
+], function(dom, langx, noder, datax, eventer, finder, geom, styler, fx,scripter) {
     var some = Array.prototype.some,
         push = Array.prototype.push,
         every = Array.prototype.every,
@@ -532,7 +533,7 @@ define([
 
             siblings: wrapper_selector(finder.siblings, finder),
 
-            html: wrapper_value(noder.html, noder, noder.html),
+            html: wrapper_value(scripter.html, scripter, scripter.html),
 
             text: wrapper_value(datax.text, datax, datax.text),
 
