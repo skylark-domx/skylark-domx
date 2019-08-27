@@ -3073,8 +3073,8 @@ define('skylark-utils-dom/datax',[
           }
 
           // If set returns undefined, fall back to normal setting
-          if ( !hooks || !( "set" in hooks ) || hooks.set( elm, val, "value" ) === undefined ) {
-            elm.value = val;
+          if ( !hooks || !( "set" in hooks ) || hooks.set( elm, value, "value" ) === undefined ) {
+            elm.value = value;
           }
         }      
     }
