@@ -86,7 +86,7 @@
 
 })(function(define,require) {
 
-define('skylark-langx/_attach',[],function(){
+define('skylark-langx-ns/_attach',[],function(){
     return  function attach(obj1,path,obj2) {
         if (typeof path == "string") {
             path = path.split(".");//[path]
@@ -104,7 +104,7 @@ define('skylark-langx/_attach',[],function(){
         return ns[name] = obj2;
     }
 });
-define('skylark-langx/skylark',[
+define('skylark-langx-ns/ns',[
     "./_attach"
 ], function(_attach) {
     var skylark = {
@@ -115,6 +115,19 @@ define('skylark-langx/skylark',[
     return skylark;
 });
 
+define('skylark-langx-ns/main',[
+	"./ns"
+],function(skylark){
+	return skylark;
+});
+define('skylark-langx-ns', ['skylark-langx-ns/main'], function (main) { return main; });
+
+define('skylark-langx/skylark',[
+    "skylark-langx-ns"
+], function(ns) {
+	return ns;
+});
+
 define('skylark-utils-dom/skylark',["skylark-langx/skylark"], function(skylark) {
     return skylark;
 });
@@ -123,8 +136,9 @@ define('skylark-utils-dom/dom',["./skylark"], function(skylark) {
 	return skylark.dom = skylark.attach("utils.dom",{});
 });
 
-define('skylark-langx/types',[
-],function(){
+define('skylark-langx-types/types',[
+    "skylark-langx-ns"
+],function(skylark){
     var toString = {}.toString;
     
     var type = (function() {
@@ -304,7 +318,7 @@ define('skylark-langx/types',[
       return value === undefined
     }
 
-    return {
+    return skylark.attach("langx.types",{
 
         isArray: isArray,
 
@@ -345,12 +359,20 @@ define('skylark-langx/types',[
         isWindow: isWindow,
 
         type: type
-    };
+    });
 
 });
-define('skylark-langx/numbers',[
+define('skylark-langx-types/main',[
 	"./types"
 ],function(types){
+	return types;
+});
+define('skylark-langx-types', ['skylark-langx-types/main'], function (main) { return main; });
+
+define('skylark-langx-numbers/numbers',[
+    "skylark-langx-ns",
+    "skylark-langx-types"
+],function(skylark,types){
 	var isObject = types.isObject,
 		isSymbol = types.isSymbol;
 
@@ -487,17 +509,25 @@ define('skylark-langx/numbers',[
 	    : (reIsBadHex.test(value) ? NAN : +value);
 	}
 
-	return  {
+	return  skylark.attach("langx.numbers",{
 		toFinite : toFinite,
 		toNumber : toNumber,
 		toInteger : toInteger
-	}
+	});
 });
-define('skylark-langx/objects',[
-    "./_attach",
-	"./types",
-    "./numbers"
-],function(_attach,types,numbers){
+define('skylark-langx-numbers/main',[
+	"./numbers"
+],function(numbers){
+	return numbers;
+});
+define('skylark-langx-numbers', ['skylark-langx-numbers/main'], function (main) { return main; });
+
+define('skylark-langx-objects/objects',[
+    "skylark-langx-ns/ns",
+    "skylark-langx-ns/_attach",
+	"skylark-langx-types",
+    "skylark-langx-numbers"
+],function(skylark,_attach,types,numbers){
 	var hasOwnProperty = Object.prototype.hasOwnProperty,
         slice = Array.prototype.slice,
         isBoolean = types.isBoolean,
@@ -934,7 +964,7 @@ define('skylark-langx/objects',[
 
     }
 
-    return {
+    return skylark.attach("langx.objects",{
         allKeys: allKeys,
 
         attach : _attach,
@@ -970,15 +1000,22 @@ define('skylark-langx/objects',[
         safeMixin: safeMixin,
 
         values: values
-    };
-
+    });
 
 
 });
-define('skylark-langx/arrays',[
-	"./types",
-  "./objects"
-],function(types,objects){
+define('skylark-langx-objects/main',[
+	"./objects"
+],function(objects){
+	return objects;
+});
+define('skylark-langx-objects', ['skylark-langx-objects/main'], function (main) { return main; });
+
+define('skylark-langx-arrays/arrays',[
+  "skylark-langx-ns/ns",
+  "skylark-langx-types",
+  "skylark-langx-objects"
+],function(skylark,types,objects){
 	var filter = Array.prototype.filter,
 		isArrayLike = types.isArrayLike;
 
@@ -1163,7 +1200,7 @@ define('skylark-langx/arrays',[
         })
     }
 
-    return {
+    return skylark.attach("langx.arrays",{
         baseFindIndex: baseFindIndex,
 
         baseIndexOf : baseIndexOf,
@@ -1198,13 +1235,26 @@ define('skylark-langx/arrays',[
 
         uniq : uniq
 
-    }
+    });
 });
-define('skylark-langx/klass',[
-    "./arrays",
-    "./objects",
-    "./types"
-],function(arrays,objects,types){
+define('skylark-langx-arrays/main',[
+	"./arrays"
+],function(arrays){
+	return arrays;
+});
+define('skylark-langx-arrays', ['skylark-langx-arrays/main'], function (main) { return main; });
+
+define('skylark-langx/arrays',[
+	"skylark-langx-arrays"
+],function(arrays){
+  return arrays;
+});
+define('skylark-langx-klass/klass',[
+  "skylark-langx-ns/ns",
+  "skylark-langx-types",
+  "skylark-langx-objects",
+  "skylark-langx-arrays",
+],function(skylark,types,objects,arrays){
     var uniq = arrays.uniq,
         has = objects.has,
         mixin = objects.mixin,
@@ -1448,7 +1498,19 @@ let longEar = klass({
 
     var createClass = f1();
 
-    return createClass;
+    return skylark.attach("langx.klass",createClass);
+});
+define('skylark-langx-klass/main',[
+	"./klass"
+],function(klass){
+	return klass;
+});
+define('skylark-langx-klass', ['skylark-langx-klass/main'], function (main) { return main; });
+
+define('skylark-langx/klass',[
+    "skylark-langx-klass"
+],function(klass){
+    return klass;
 });
 define('skylark-langx/ArrayStore',[
     "./klass"
@@ -1919,10 +1981,11 @@ define('skylark-langx/aspect',[
         before: aspect("before")
     };
 });
-define('skylark-langx/funcs',[
-    "./objects",
-	"./types"
-],function(objects,types){
+define('skylark-langx-funcs/funcs',[
+  "skylark-langx-ns/ns",
+  "skylark-langx-types",
+  "skylark-langx-objects"
+],function(skylark,types,objects){
 	var mixin = objects.mixin,
         slice = Array.prototype.slice,
         isFunction = types.isFunction,
@@ -2050,7 +2113,7 @@ define('skylark-langx/funcs',[
     return template;
   };
 
-    return {
+    return skylark.attach("langx.funcs",{
         debounce: debounce,
 
         delegate: delegate,
@@ -2071,12 +2134,19 @@ define('skylark-langx/funcs',[
 
         templateSettings : templateSettings,
         template : template
-    };
+    });
 });
-define('skylark-langx/Deferred',[
-    "./arrays",
-	"./funcs",
-    "./objects"
+define('skylark-langx-funcs/main',[
+	"./funcs"
+],function(funcs){
+	return funcs;
+});
+define('skylark-langx-funcs', ['skylark-langx-funcs/main'], function (main) { return main; });
+
+define('skylark-langx-async/Deferred',[
+    "skylark-langx-arrays",
+	"skylark-langx-funcs",
+    "skylark-langx-objects"
 ],function(arrays,funcs,objects){
     "use strict";
     
@@ -2299,13 +2369,16 @@ define('skylark-langx/Deferred',[
 
     return Deferred;
 });
-define('skylark-langx/async',[
-    "./Deferred",
-    "./objects"
-],function(Deferred,objects){
+define('skylark-langx-async/async',[
+    "skylark-langx-ns",
+    "skylark-langx-objects",
+    "./Deferred"
+],function(skylark,objects,Deferred){
     var each = objects.each;
     
     var async = {
+        Deferred : Deferred,
+
         parallel : function(arr,args,ctx) {
             var rets = [];
             ctx = ctx || null;
@@ -2353,9 +2426,23 @@ define('skylark-langx/async',[
         }
     };
 
-	return async;	
+	return skylark.attach("langx.async",async);	
 });
-define('skylark-langx/datetimes',[],function(){
+define('skylark-langx-async/main',[
+	"./async"
+],function(async){
+	return async;
+});
+define('skylark-langx-async', ['skylark-langx-async/main'], function (main) { return main; });
+
+define('skylark-langx/async',[
+    "skylark-langx-async"
+],function(async){
+    return async;
+});
+define('skylark-langx-datetimes/datetimes',[
+    "skylark-langx-ns"
+],function(skylark){
      function parseMilliSeconds(str) {
 
         var strs = str.split(' ');
@@ -2414,16 +2501,34 @@ define('skylark-langx/datetimes',[],function(){
         }
     };
 	
-	return {
+	return skylark.attach("langx.datetimes",{
 		parseMilliSeconds
-	};
+	});
 });
-define('skylark-langx/Evented',[
-    "./klass",
-    "./arrays",
-    "./objects",
-    "./types"
-],function(klass,arrays,objects,types){
+define('skylark-langx-datetimes/main',[
+	"./datetimes"
+],function(datetimes){
+	return datetimes;
+});
+define('skylark-langx-datetimes', ['skylark-langx-datetimes/main'], function (main) { return main; });
+
+define('skylark-langx/datetimes',[
+    "skylark-langx-datetimes"
+],function(datetimes){
+    return datetimes;
+});
+define('skylark-langx/Deferred',[
+    "skylark-langx-async/Deferred"
+],function(Deferred){
+    return Deferred;
+});
+define('skylark-langx-emitter/Evented',[
+  "skylark-langx-ns/ns",
+  "skylark-langx-types",
+  "skylark-langx-objects",
+  "skylark-langx-arrays",
+  "skylark-langx-klass"
+],function(skylark,types,objects,arrays,klass){
     var slice = Array.prototype.slice,
         compact = arrays.compact,
         isDefined = types.isDefined,
@@ -2697,11 +2802,29 @@ define('skylark-langx/Evented',[
         }
     });
 
-    return Evented;
+    return skylark.attach("langx.Evented",Evented);
 
 });
-define('skylark-langx/hoster',[
-],function(){
+define('skylark-langx-emitter/main',[
+	"./Evented"
+],function(Evented){
+	return Evented;
+});
+define('skylark-langx-emitter', ['skylark-langx-emitter/main'], function (main) { return main; });
+
+define('skylark-langx/Evented',[
+    "skylark-langx-emitter"
+],function(Evented){
+    return Evented;
+});
+define('skylark-langx/funcs',[
+    "skylark-langx-funcs"
+],function(funcs){
+    return funcs;
+});
+define('skylark-langx-hoster/hoster',[
+    "skylark-langx-ns"
+],function(skylark){
 	// The javascript host environment, brower and nodejs are supported.
 	var hoster = {
 		"isBrowser" : true, // default
@@ -2778,7 +2901,29 @@ define('skylark-langx/hoster',[
 	    }
 	}
 
-	return  hoster;
+	return  skylark.attach("langx.hoster",hoster);
+});
+define('skylark-langx-hoster/main',[
+	"./hoster"
+],function(hoster){
+	return hoster;
+});
+define('skylark-langx-hoster', ['skylark-langx-hoster/main'], function (main) { return main; });
+
+define('skylark-langx/hoster',[
+	"skylark-langx-hoster"
+],function(hoster){
+	return hoster;
+});
+define('skylark-langx/numbers',[
+	"skylark-langx-numbers"
+],function(numbers){
+	return numbers;
+});
+define('skylark-langx/objects',[
+    "skylark-langx-objects"
+],function(objects){
+    return objects;
 });
 define('skylark-langx/strings',[
 ],function(){
@@ -2837,6 +2982,13 @@ define('skylark-langx/strings',[
         return str.toString().replace(escapeChars, replaceChar);
     }
 
+    function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0;
+            var v = c === 'x' ? r : ((r & 0x3) | 0x8);
+            return v.toString(16);
+        });
+    }
 
     function trim(str) {
         return str == null ? "" : String.prototype.trim.call(str);
@@ -2970,6 +3122,30 @@ define('skylark-langx/strings',[
         return str.replace(/\s+$/g, '');
     }
 
+    // Slugify a string
+    function slugify(str) {
+        str = str.replace(/^\s+|\s+$/g, '');
+
+        // Make the string lowercase
+        str = str.toLowerCase();
+
+        // Remove accents, swap ñ for n, etc
+        var from = "ÁÄÂÀÃÅČÇĆĎÉĚËÈÊẼĔȆÍÌÎÏŇÑÓÖÒÔÕØŘŔŠŤÚŮÜÙÛÝŸŽáäâàãåčçćďéěëèêẽĕȇíìîïňñóöòôõøðřŕšťúůüùûýÿžþÞĐđßÆa·/_,:;";
+        var to   = "AAAAAACCCDEEEEEEEEIIIINNOOOOOORRSTUUUUUYYZaaaaaacccdeeeeeeeeiiiinnooooooorrstuuuuuyyzbBDdBAa------";
+        for (var i=0, l=from.length ; i<l ; i++) {
+            str = str.replace(new RegExp(from.charAt(i), 'g'), to.charAt(i));
+        }
+
+        // Remove invalid chars
+        str = str.replace(/[^a-z0-9 -]/g, '') 
+        // Collapse whitespace and replace by -
+        .replace(/\s+/g, '-') 
+        // Collapse dashes
+        .replace(/-+/g, '-'); 
+
+        return str;
+    }    
+
     // return boolean if string 'true' or string 'false', or if a parsable string which is a number
     // also supports JSON object and/or arrays parsing
     function toType(str) {
@@ -3008,6 +3184,8 @@ define('skylark-langx/strings',[
 
         escapeHTML : escapeHTML,
 
+        generateUUID : generateUUID,
+
         lowerFirst: function(str) {
             return str.charAt(0).toLowerCase() + str.slice(1);
         },
@@ -3021,6 +3199,8 @@ define('skylark-langx/strings',[
 
         substitute: substitute,
 
+        slugify : slugify,
+
         template : template,
 
         trim: trim,
@@ -3033,14 +3213,16 @@ define('skylark-langx/strings',[
 	} ; 
 
 });
-define('skylark-langx/Xhr',[
-    "./arrays",
-    "./Deferred",
-    "./Evented",
-    "./objects",
-    "./funcs",
-    "./types"
-],function(arrays,Deferred,Evented,objects,funcs,types){
+define('skylark-langx-xhr/Xhr',[
+  "skylark-langx-ns/ns",
+  "skylark-langx-types",
+  "skylark-langx-objects",
+  "skylark-langx-arrays",
+  "skylark-langx-funcs",
+  "skylark-langx-async/Deferred",
+  "skylark-langx-emitter/Evented"
+],function(skylark,types,objects,arrays,funcs,Deferred,Evented){
+
     var each = objects.each,
         mixin = objects.mixin,
         noop = funcs.noop,
@@ -3387,7 +3569,19 @@ define('skylark-langx/Xhr',[
         return Xhr;
     })();
 
-	return Xhr;	
+	return skylark.attach("langx.Xhr",Xhr);	
+});
+define('skylark-langx-xhr/main',[
+	"./Xhr"
+],function(Xhr){
+	return Xhr;
+});
+define('skylark-langx-xhr', ['skylark-langx-xhr/main'], function (main) { return main; });
+
+define('skylark-langx/Xhr',[
+    "skylark-langx-xhr"
+],function(xhr){
+    return xhr;
 });
 define('skylark-langx/Restful',[
     "./Evented",
@@ -3731,12 +3925,13 @@ define('skylark-langx/Stateful',[
 
 	return Stateful;
 });
-define('skylark-langx/topic',[
-	"./Evented"
-],function(Evented){
+define('skylark-langx-topic/topic',[
+	"skylark-langx-ns",
+	"skylark-langx-emitter/Evented"
+],function(skylark,Evented){
 	var hub = new Evented();
 
-	return {
+	return skylark.attach("langx.topic",{
 	    publish: function(name, arg1,argn) {
 	        var data = [].slice.call(arguments, 1);
 
@@ -3759,7 +3954,24 @@ define('skylark-langx/topic',[
 
         }
 
-	}
+	});
+});
+define('skylark-langx-topic/main',[
+	"./topic"
+],function(topic){
+	return topic;
+});
+define('skylark-langx-topic', ['skylark-langx-topic/main'], function (main) { return main; });
+
+define('skylark-langx/topic',[
+	"skylark-langx-topic"
+],function(topic){
+	return topic;
+});
+define('skylark-langx/types',[
+    "skylark-langx-types"
+],function(types){
+    return types;
 });
 define('skylark-langx/langx',[
     "./skylark",
