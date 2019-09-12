@@ -5,5 +5,5 @@
  * @link www.skylarkjs.org
  * @license MIT
  */
-define(["./skylark"],function(t){return t.dom=t.attach("utils.dom",{})});
+define(["./skylark"],function(n){return n.dom=n.attach("dom",{})});
 //# sourceMappingURL=sourcemaps/dom.js.map
