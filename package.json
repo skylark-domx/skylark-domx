@@ -1,5 +1,5 @@
 {
-  "name": "skylark-utils-dom",
+  "name": "skylark-domx",
   "version": "0.9.0",
   "description": "An Elegant HTML5 DOM utility Library.",
   "main": "-",
@@ -10,7 +10,7 @@
   "homepage": "www.skylarkjs.org",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/skylarkjs/skylark-utils-dom.git"
+    "url": "git+https://github.com/skylark-domx/skylark-domx.git"
   },
   "keywords": [
     "skylark",
