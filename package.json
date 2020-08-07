@@ -4,7 +4,7 @@
   "description": "An Elegant HTML5 DOM utility Library.",
   "main": "-",
   "scripts": {
-    "build": "sbundle build .",
+    "build": "slib build .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "homepage": "www.skylarkjs.org",
@@ -31,18 +31,37 @@
     "skylark-domx-finder": "git+https://github.com/skylark-domx/skylark-domx-finder.git#master",
     "skylark-domx-fx": "git+https://github.com/skylark-domx/skylark-domx-fx.git#master",
     "skylark-domx-geom": "git+https://github.com/skylark-domx/skylark-domx-geom.git#master",
-    "skylark-domx-images": "git+https://github.com/skylark-domx/skylark-domx-images.git#master",
     "skylark-domx-noder": "git+https://github.com/skylark-domx/skylark-domx-noder.git#master",
     "skylark-domx-plugins": "git+https://github.com/skylark-domx/skylark-domx-plugins.git#master",
     "skylark-domx-query": "git+https://github.com/skylark-domx/skylark-domx-query.git#master",
     "skylark-domx-scripter": "git+https://github.com/skylark-domx/skylark-domx-scripter.git#master",
     "skylark-domx-styler": "git+https://github.com/skylark-domx/skylark-domx-styler.git#master",
-    "skylark-domx-tables": "git+https://github.com/skylark-domx/skylark-domx-tables.git#master",
     "skylark-domx-transforms": "git+https://github.com/skylark-domx/skylark-domx-transforms.git#master",
     "skylark-domx-velm": "git+https://github.com/skylark-domx/skylark-domx-velm.git#master",
     "skylark-langx": "git+https://github.com/skylarklangx/skylark-langx.git#master"
   },
   "engines": {
     "node": ">=0.8.0"
-  }
+  },
+  "skylarkjs": {
+    "directories": {
+      "dependencies": "./node_modules"
+    },
+    "secondaries": {},
+    "build": {
+      "prepare": {
+        "texttojs": [
+          "html",
+          "json",
+          "css"
+        ],
+        "jsxtojs": false,
+        "es6toamd": false,
+        "cjstoamd": false
+      },
+      "bundles": {
+        "all": true
+      }
+    }
+  }  
 }

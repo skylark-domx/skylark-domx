@@ -6,7 +6,6 @@ define([
     "./finder",
     "./fx",
     "./geom",
-    "./images",
     "./noder",
     "./plugins",
     "./query",
@@ -14,7 +13,7 @@ define([
     "./styler",
     "./transforms",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,images,noder,plugins,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,noder,plugins,query,scripter,styler,transforms,velm) {
     return {
         browser,
         css,
@@ -22,7 +21,6 @@ define([
         eventer,
         finder,
         geom,
-        images,
         noder,
         plugins,
         query,
