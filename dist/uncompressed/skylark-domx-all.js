@@ -2674,7 +2674,7 @@ define('skylark-langx-binary/binary',[
 		//return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 	};
 
-	return skyalrk.attach("langx.binary",{
+	return skylark.attach("langx.binary",{
 		fromBase64,
 		fromBinaryString,
 		fromBuffer
