@@ -323,6 +323,144 @@ define('skylark-langx-types/types',[
         return obj === void 0;
     }
 
+
+    var INFINITY = 1 / 0,
+        MAX_SAFE_INTEGER = 9007199254740991,
+        MAX_INTEGER = 1.7976931348623157e+308,
+        NAN = 0 / 0;
+
+    /** Used to match leading and trailing whitespace. */
+    var reTrim = /^\s+|\s+$/g;
+
+    /** Used to detect bad signed hexadecimal string values. */
+    var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
+
+    /** Used to detect binary string values. */
+    var reIsBinary = /^0b[01]+$/i;
+
+    /** Used to detect octal string values. */
+    var reIsOctal = /^0o[0-7]+$/i;
+
+    /** Used to detect unsigned integer values. */
+    var reIsUint = /^(?:0|[1-9]\d*)$/;
+
+    /** Built-in method references without a dependency on `root`. */
+    var freeParseInt = parseInt;
+
+    /**
+     * Converts `value` to a finite number.
+     *
+     * @static
+     * @memberOf _
+     * @since 4.12.0
+     * @category Lang
+     * @param {*} value The value to convert.
+     * @returns {number} Returns the converted number.
+     * @example
+     *
+     * _.toFinite(3.2);
+     * // => 3.2
+     *
+     * _.toFinite(Number.MIN_VALUE);
+     * // => 5e-324
+     *
+     * _.toFinite(Infinity);
+     * // => 1.7976931348623157e+308
+     *
+     * _.toFinite('3.2');
+     * // => 3.2
+     */
+    function toFinite(value) {
+      if (!value) {
+        return value === 0 ? value : 0;
+      }
+      value = toNumber(value);
+      if (value === INFINITY || value === -INFINITY) {
+        var sign = (value < 0 ? -1 : 1);
+        return sign * MAX_INTEGER;
+      }
+      return value === value ? value : 0;
+    }
+
+    /**
+     * Converts `value` to an integer.
+     *
+     * **Note:** This method is loosely based on
+     * [`ToInteger`](http://www.ecma-international.org/ecma-262/7.0/#sec-tointeger).
+     *
+     * @static
+     * @memberOf _
+     * @param {*} value The value to convert.
+     * @returns {number} Returns the converted integer.
+     * @example
+     *
+     * _.toInteger(3.2);
+     * // => 3
+     *
+     * _.toInteger(Number.MIN_VALUE);
+     * // => 0
+     *
+     * _.toInteger(Infinity);
+     * // => 1.7976931348623157e+308
+     *
+     * _.toInteger('3.2');
+     * // => 3
+     */
+    function toInteger(value) {
+      var result = toFinite(value),
+          remainder = result % 1;
+
+      return result === result ? (remainder ? result - remainder : result) : 0;
+    }   
+
+    /**
+     * Converts `value` to a number.
+     *
+     * @static
+     * @memberOf _
+     * @since 4.0.0
+     * @category Lang
+     * @param {*} value The value to process.
+     * @returns {number} Returns the number.
+     * @example
+     *
+     * _.toNumber(3.2);
+     * // => 3.2
+     *
+     * _.toNumber(Number.MIN_VALUE);
+     * // => 5e-324
+     *
+     * _.toNumber(Infinity);
+     * // => Infinity
+     *
+     * _.toNumber('3.2');
+     * // => 3.2
+     */
+    function toNumber(value) {
+      if (typeof value == 'number') {
+        return value;
+      }
+      if (isSymbol(value)) {
+        return NAN;
+      }
+      if (isObject(value)) {
+        var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
+        value = isObject(other) ? (other + '') : other;
+      }
+      if (typeof value != 'string') {
+        return value === 0 ? value : +value;
+      }
+      value = value.replace(reTrim, '');
+      var isBinary = reIsBinary.test(value);
+      return (isBinary || reIsOctal.test(value))
+        ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
+        : (reIsBadHex.test(value) ? NAN : +value);
+    }
+
+
+
+
+
     return skylark.attach("langx.types",{
 
         isArray: isArray,
@@ -370,7 +508,12 @@ define('skylark-langx-types/types',[
 
         isWindow: isWindow,
 
-        type: type
+        type: type,
+
+        toFinite : toFinite,
+        toNumber : toNumber,
+        toInteger : toInteger
+        
     });
 
 });
@@ -381,165 +524,11 @@ define('skylark-langx-types/main',[
 });
 define('skylark-langx-types', ['skylark-langx-types/main'], function (main) { return main; });
 
-define('skylark-langx-numbers/numbers',[
-    "skylark-langx-ns",
-    "skylark-langx-types"
-],function(skylark,types){
-	var isObject = types.isObject,
-		isSymbol = types.isSymbol;
-
-	var INFINITY = 1 / 0,
-	    MAX_SAFE_INTEGER = 9007199254740991,
-	    MAX_INTEGER = 1.7976931348623157e+308,
-	    NAN = 0 / 0;
-
-	/** Used to match leading and trailing whitespace. */
-	var reTrim = /^\s+|\s+$/g;
-
-	/** Used to detect bad signed hexadecimal string values. */
-	var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
-
-	/** Used to detect binary string values. */
-	var reIsBinary = /^0b[01]+$/i;
-
-	/** Used to detect octal string values. */
-	var reIsOctal = /^0o[0-7]+$/i;
-
-	/** Used to detect unsigned integer values. */
-	var reIsUint = /^(?:0|[1-9]\d*)$/;
-
-	/** Built-in method references without a dependency on `root`. */
-	var freeParseInt = parseInt;
-
-	/**
-	 * Converts `value` to a finite number.
-	 *
-	 * @static
-	 * @memberOf _
-	 * @since 4.12.0
-	 * @category Lang
-	 * @param {*} value The value to convert.
-	 * @returns {number} Returns the converted number.
-	 * @example
-	 *
-	 * _.toFinite(3.2);
-	 * // => 3.2
-	 *
-	 * _.toFinite(Number.MIN_VALUE);
-	 * // => 5e-324
-	 *
-	 * _.toFinite(Infinity);
-	 * // => 1.7976931348623157e+308
-	 *
-	 * _.toFinite('3.2');
-	 * // => 3.2
-	 */
-	function toFinite(value) {
-	  if (!value) {
-	    return value === 0 ? value : 0;
-	  }
-	  value = toNumber(value);
-	  if (value === INFINITY || value === -INFINITY) {
-	    var sign = (value < 0 ? -1 : 1);
-	    return sign * MAX_INTEGER;
-	  }
-	  return value === value ? value : 0;
-	}
-
-	/**
-	 * Converts `value` to an integer.
-	 *
-	 * **Note:** This method is loosely based on
-	 * [`ToInteger`](http://www.ecma-international.org/ecma-262/7.0/#sec-tointeger).
-	 *
-	 * @static
-	 * @memberOf _
-	 * @param {*} value The value to convert.
-	 * @returns {number} Returns the converted integer.
-	 * @example
-	 *
-	 * _.toInteger(3.2);
-	 * // => 3
-	 *
-	 * _.toInteger(Number.MIN_VALUE);
-	 * // => 0
-	 *
-	 * _.toInteger(Infinity);
-	 * // => 1.7976931348623157e+308
-	 *
-	 * _.toInteger('3.2');
-	 * // => 3
-	 */
-	function toInteger(value) {
-	  var result = toFinite(value),
-	      remainder = result % 1;
-
-	  return result === result ? (remainder ? result - remainder : result) : 0;
-	}	
-
-	/**
-	 * Converts `value` to a number.
-	 *
-	 * @static
-	 * @memberOf _
-	 * @since 4.0.0
-	 * @category Lang
-	 * @param {*} value The value to process.
-	 * @returns {number} Returns the number.
-	 * @example
-	 *
-	 * _.toNumber(3.2);
-	 * // => 3.2
-	 *
-	 * _.toNumber(Number.MIN_VALUE);
-	 * // => 5e-324
-	 *
-	 * _.toNumber(Infinity);
-	 * // => Infinity
-	 *
-	 * _.toNumber('3.2');
-	 * // => 3.2
-	 */
-	function toNumber(value) {
-	  if (typeof value == 'number') {
-	    return value;
-	  }
-	  if (isSymbol(value)) {
-	    return NAN;
-	  }
-	  if (isObject(value)) {
-	    var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
-	    value = isObject(other) ? (other + '') : other;
-	  }
-	  if (typeof value != 'string') {
-	    return value === 0 ? value : +value;
-	  }
-	  value = value.replace(reTrim, '');
-	  var isBinary = reIsBinary.test(value);
-	  return (isBinary || reIsOctal.test(value))
-	    ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
-	    : (reIsBadHex.test(value) ? NAN : +value);
-	}
-
-	return  skylark.attach("langx.numbers",{
-		toFinite : toFinite,
-		toNumber : toNumber,
-		toInteger : toInteger
-	});
-});
-define('skylark-langx-numbers/main',[
-	"./numbers"
-],function(numbers){
-	return numbers;
-});
-define('skylark-langx-numbers', ['skylark-langx-numbers/main'], function (main) { return main; });
-
 define('skylark-langx-objects/objects',[
     "skylark-langx-ns/ns",
     "skylark-langx-ns/_attach",
-	"skylark-langx-types",
-    "skylark-langx-numbers"
-],function(skylark,_attach,types,numbers){
+	"skylark-langx-types"
+],function(skylark,_attach,types){
 	var hasOwnProperty = Object.prototype.hasOwnProperty,
         slice = Array.prototype.slice,
         isBoolean = types.isBoolean,
@@ -549,7 +538,7 @@ define('skylark-langx-objects/objects',[
 		isArray = types.isArray,
         isArrayLike = types.isArrayLike,
         isString = types.isString,
-        toInteger = numbers.toInteger;
+        toInteger = types.toInteger;
 
      // An internal function for creating assigner functions.
     function createAssigner(keysFunc, defaults) {
@@ -3538,10 +3527,28 @@ define('skylark-langx/maths',[
 ],function(maths){
     return maths;
 });
-define('skylark-langx/numbers',[
-	"skylark-langx-numbers"
-],function(numbers){
-	return numbers;
+define('skylark-langx-numerics/numerics',[
+    "skylark-langx-ns",
+    "skylark-langx-types"
+],function(skylark,types){
+
+	return  skylark.attach("langx.numerics",{
+		toFinite : types.toFinite,
+		toNumber : types.toNumber,
+		toInteger : types.toInteger
+	});
+});
+define('skylark-langx-numerics/main',[
+	"./numerics"
+],function(numerics){
+	return numerics;
+});
+define('skylark-langx-numerics', ['skylark-langx-numerics/main'], function (main) { return main; });
+
+define('skylark-langx/numerics',[
+	"skylark-langx-numerics"
+],function(numerics){
+	return numerics;
 });
 define('skylark-langx/objects',[
     "skylark-langx-objects"
@@ -4293,7 +4300,7 @@ define('skylark-langx/langx',[
     "./hoster",
     "./klass",
     "./maths",
-    "./numbers",
+    "./numerics",
     "./objects",
     "./Stateful",
     "./strings",
@@ -4315,7 +4322,7 @@ define('skylark-langx/langx',[
     hoster,
     klass,
     maths,
-    numbers,
+    numerics,
     objects,
     Stateful,
     strings,
@@ -4385,7 +4392,7 @@ define('skylark-langx/langx',[
     });
 
 
-    mixin(langx, arrays,aspect,datetimes,funcs,numbers,objects,strings,types,{
+    mixin(langx, arrays,aspect,datetimes,funcs,numerics,objects,strings,types,{
         ArrayStore : ArrayStore,
 
         async : async,
@@ -7385,6 +7392,7 @@ define('skylark-domx-query/query',[
         }
     }
 
+
     var NodeList = langx.klass({
         klassName: "SkNodeList",
         init: function(selector, context) {
@@ -7431,7 +7439,7 @@ define('skylark-domx-query/query',[
                         nodes = finder.descendants(context, selector);
                     }
                 } else {
-                    if (selector !== window && isArrayLike(selector)) {
+                    if (!noder.isWindow(selector) && isArrayLike(selector)) {
                         // a dom node array is expected
                         nodes = selector;
                     } else {
@@ -9470,7 +9478,6 @@ define('skylark-domx-geom/geom',[
         }
     }
 
-
     //viewport coordinate
     /*
      * Get or set the viewport position of the specified element border box.
@@ -9495,7 +9502,6 @@ define('skylark-domx-geom/geom',[
             return this;
         }
     }
-
 
     /*
      * Get or set the viewport rect of the specified element border box.
@@ -9613,27 +9619,6 @@ define('skylark-domx-geom/geom',[
         };
     }
 
-
-    function fullCover(elem, hor, vert) {
-        let vertical = vert;
-        let horizontal = hor;
-        if (langx.isUndefined(horizontal)) {
-            horizontal = true;
-        }
-        if (langx.isUndefined(vertical)) {
-            vertical = true;
-        }
-        elem.style.position = 'absolute';
-        if (horizontal) {
-            elem.style.left = 0;
-            elem.style.right = 0;
-        }
-        if (vertical) {
-            elem.style.top = 0;
-            elem.style.bottom = 0;
-        }
-    }
-
     /*
      * Get the document size.
      * @param {HTMLDocument} doc
@@ -9669,31 +9654,6 @@ define('skylark-domx-geom/geom',[
             });
             return this;
         }
-    }
-
-    /**
-     * Check if a DOM element in completely visible in the viewport
-     *
-     * @method isVisible
-     * @param {DOM} elm DOM element to test.
-     * @return {Boolean} True if the element is inside of the browser viewport.
-     */
-    function isVisible(elm)   {
-        var top = elm.offsetTop;
-        var left = elm.offsetLeft;
-        var width = elm.offsetWidth;
-        var height = elm.offsetHeight;
-
-        while(elm.offsetParent)  {
-            elm = elm.offsetParent;
-            top += elm.offsetTop;
-            left += elm.offsetLeft;
-        }
-
-        return value = top >= window.pageYOffset && 
-                       left >= window.pageXOffset && 
-                       (top + height) <= (window.pageYOffset + window.innerHeight) && 
-                       (left + width) <= (window.pageXOffset + window.innerWidth);
     }
 
     /*
@@ -9772,10 +9732,11 @@ define('skylark-domx-geom/geom',[
     //coordinate to the document
     function pagePosition(elm, coords) {
         if (coords === undefined) {
-            var obj = elm.getBoundingClientRect()
+            var obj = elm.getBoundingClientRect(),
+                w = elm.ownerDocument.defaultView;
             return {
-                left: obj.left + window.pageXOffset,
-                top: obj.top + window.pageYOffset
+                left: obj.left + w.pageXOffset,
+                top: obj.top + w.pageYOffset
             }
         } else {
             var // Get *real* offsetParent
@@ -9800,10 +9761,11 @@ define('skylark-domx-geom/geom',[
      */
     function pageRect(elm, coords) {
         if (coords === undefined) {
-            var obj = elm.getBoundingClientRect()
+            var obj = elm.getBoundingClientRect(),
+                w = elm.ownerDocument.defaultView;
             return {
-                left: obj.left + window.pageXOffset,
-                top: obj.top + window.pageYOffset,
+                left: obj.left + w.pageXOffset,
+                top: obj.top + w.pageYOffset,
                 width: Math.round(obj.width),
                 height: Math.round(obj.height)
             }
@@ -10022,53 +9984,6 @@ define('skylark-domx-geom/geom',[
         }
     }
 
-    /**
-     * Check if a DOM element is out of the window and how far it is, returns object with x and y values.
-     * 
-     * If the value is 0 the element is inside the window on that axis.
-     *
-     * @method testAxis
-     * @param {DOM} elm DOM element to test.
-     * @return {Vector2} Distance outside of the viewport.
-     */
-    function testAxis(elm) {
-        var top = elm.offsetTop;
-        var left = elm.offsetLeft;
-        var width = elm.offsetWidth;
-        var height = elm.offsetHeight;
-
-        while(elm.offsetParent) {
-            elm = elm.offsetParent;
-            top += elm.offsetTop;
-            left += elm.offsetLeft;
-        }
-
-        var result = {x: 0, y: 0};
-
-        //Over the top of the window
-        if(top < window.pageYOffset) {
-            result.y = top - window.pageYOffset;
-        }
-        //Bellow the window
-        else if((top + height) > (window.pageYOffset + window.innerHeight))
-        {
-            result.y = (top + height) - (window.pageYOffset + window.innerHeight);
-        }
-
-        //Left to the window
-        if(left < window.pageXOffset) {
-            result.x = left - window.pageXOffset;
-        }
-        //Right to the window
-        else if((left + width) > (window.pageXOffset + window.innerWidth))
-        {
-            result.x = (left + width) - (window.pageXOffset + window.innerWidth);
-        }
-
-        return result;
-    }
-
-
     function geom() {
         return geom;
     }
@@ -10088,13 +10003,9 @@ define('skylark-domx-geom/geom',[
 
         contentRect: contentRect,
 
-        fullCover,
-
         getDocumentSize: getDocumentSize,
 
         height: height,
-
-        isVisible,
 
         marginExtents: marginExtents,
 
@@ -10126,16 +10037,9 @@ define('skylark-domx-geom/geom',[
 
         size: size,
 
-        testAxis,
-
         width: width
     });
 
-
-    /*
-     * Position an element relative to the window, document, another element, or the cursor/mouse.
-     * see https://jqueryui.com/position/
-     */
     ( function() {
         var max = Math.max,
             abs = Math.abs,
