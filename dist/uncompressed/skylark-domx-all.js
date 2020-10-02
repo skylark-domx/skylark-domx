@@ -2042,8 +2042,18 @@ define('skylark-langx-funcs/debounce',[
                 timeout = null;
                 fn.apply(context, args);
             };
-            if (timeout) clearTimeout(timeout);
+
+            function stop() {
+                if (timeout) clearTimeout(timeout);
+                timeout = void 0;
+            }
+
+            stop();
             timeout = setTimeout(later, wait);
+
+            return {
+                stop 
+            };
         };
     }
 
@@ -2051,15 +2061,25 @@ define('skylark-langx-funcs/debounce',[
 
 });
 define('skylark-langx-funcs/defer',[
-	"./funcs"
+    "./funcs"
 ],function(funcs){
-	function defer(fn) {
+    function defer(fn) {
+        var ret = {
+            stop : null
+        },
+        id ;
         if (requestAnimationFrame) {
-            requestAnimationFrame(fn);
+            id = requestAnimationFrame(fn);
+            ret.stop = function() {
+                return cancelAnimationFrame(id);
+            };
         } else {
-            setTimeoutout(fn);
+            id = setTimeoutout(fn);
+            ret.stop = function() {
+                return clearTimeout(id);
+            };
         }
-        return this;
+        return ret;
     }
 
     return funcs.defer = defer;
@@ -2940,6 +2960,12 @@ define('skylark-langx-hoster/hoster',[
 	    function uaMatch( ua ) {
 		    ua = ua.toLowerCase();
 
+			//IE11OrLess = !!navigator.userAgent.match(/(?:Trident.*rv[ :]?11\.|msie|iemobile)/i),
+			//Edge = !!navigator.userAgent.match(/Edge/i),
+			//FireFox = !!navigator.userAgent.match(/firefox/i),
+			//Safari = !!(navigator.userAgent.match(/safari/i) && !navigator.userAgent.match(/chrome/i) && !navigator.userAgent.match(/android/i)),
+			//IOS = !!(navigator.userAgent.match(/iP(ad|od|hone)/i)),
+
 		    var match = /(chrome)[ \/]([\w.]+)/.exec( ua ) ||
 		      /(webkit)[ \/]([\w.]+)/.exec( ua ) ||
 		      /(opera)(?:.*version|)[ \/]([\w.]+)/.exec( ua ) ||
@@ -2970,10 +2996,147 @@ define('skylark-langx-hoster/hoster',[
 	    }
 	}
 
+
+
+
 	return  skylark.attach("langx.hoster",hoster);
 });
+define('skylark-langx-hoster/isMobile',[
+    "./hoster"
+],function(hoster){
+
+    var appleIphone = /iPhone/i;
+    var appleIpod = /iPod/i;
+    var appleTablet = /iPad/i;
+    var appleUniversal = /\biOS-universal(?:.+)Mac\b/i;
+    var androidPhone = /\bAndroid(?:.+)Mobile\b/i;
+    var androidTablet = /Android/i;
+    var amazonPhone = /(?:SD4930UR|\bSilk(?:.+)Mobile\b)/i;
+    var amazonTablet = /Silk/i;
+    var windowsPhone = /Windows Phone/i;
+    var windowsTablet = /\bWindows(?:.+)ARM\b/i;
+    var otherBlackBerry = /BlackBerry/i;
+    var otherBlackBerry10 = /BB10/i;
+    var otherOpera = /Opera Mini/i;
+    var otherChrome = /\b(CriOS|Chrome)(?:.+)Mobile/i;
+    var otherFirefox = /Mobile(?:.+)Firefox\b/i;
+    var isAppleTabletOnIos13 = function (navigator) {
+        return (typeof navigator !== 'undefined' &&
+            navigator.platform === 'MacIntel' &&
+            typeof navigator.maxTouchPoints === 'number' &&
+            navigator.maxTouchPoints > 1 &&
+            typeof MSStream === 'undefined');
+    };
+    function createMatch(userAgent) {
+        return function (regex) { return regex.test(userAgent); };
+    }
+    
+    function check(param) {
+        var nav = {
+            userAgent: '',
+            platform: '',
+            maxTouchPoints: 0
+        };
+        if (!param && typeof navigator !== 'undefined') {
+            nav = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                maxTouchPoints: navigator.maxTouchPoints || 0
+            };
+        }
+        else if (typeof param === 'string') {
+            nav.userAgent = param;
+        }
+        else if (param && param.userAgent) {
+            nav = {
+                userAgent: param.userAgent,
+                platform: param.platform,
+                maxTouchPoints: param.maxTouchPoints || 0
+            };
+        }
+        var userAgent = nav.userAgent;
+        var tmp = userAgent.split('[FBAN');
+        if (typeof tmp[1] !== 'undefined') {
+            userAgent = tmp[0];
+        }
+        tmp = userAgent.split('Twitter');
+        if (typeof tmp[1] !== 'undefined') {
+            userAgent = tmp[0];
+        }
+        var match = createMatch(userAgent);
+        var result = {
+            apple: {
+                phone: match(appleIphone) && !match(windowsPhone),
+                ipod: match(appleIpod),
+                tablet: !match(appleIphone) &&
+                    (match(appleTablet) || isAppleTabletOnIos13(nav)) &&
+                    !match(windowsPhone),
+                universal: match(appleUniversal),
+                device: (match(appleIphone) ||
+                    match(appleIpod) ||
+                    match(appleTablet) ||
+                    match(appleUniversal) ||
+                    isAppleTabletOnIos13(nav)) &&
+                    !match(windowsPhone)
+            },
+            amazon: {
+                phone: match(amazonPhone),
+                tablet: !match(amazonPhone) && match(amazonTablet),
+                device: match(amazonPhone) || match(amazonTablet)
+            },
+            android: {
+                phone: (!match(windowsPhone) && match(amazonPhone)) ||
+                    (!match(windowsPhone) && match(androidPhone)),
+                tablet: !match(windowsPhone) &&
+                    !match(amazonPhone) &&
+                    !match(androidPhone) &&
+                    (match(amazonTablet) || match(androidTablet)),
+                device: (!match(windowsPhone) &&
+                    (match(amazonPhone) ||
+                        match(amazonTablet) ||
+                        match(androidPhone) ||
+                        match(androidTablet))) ||
+                    match(/\bokhttp\b/i)
+            },
+            windows: {
+                phone: match(windowsPhone),
+                tablet: match(windowsTablet),
+                device: match(windowsPhone) || match(windowsTablet)
+            },
+            other: {
+                blackberry: match(otherBlackBerry),
+                blackberry10: match(otherBlackBerry10),
+                opera: match(otherOpera),
+                firefox: match(otherFirefox),
+                chrome: match(otherChrome),
+                device: match(otherBlackBerry) ||
+                    match(otherBlackBerry10) ||
+                    match(otherOpera) ||
+                    match(otherFirefox) ||
+                    match(otherChrome)
+            },
+            any: false,
+            phone: false,
+            tablet: false
+        };
+        result.any =
+            result.apple.device ||
+                result.android.device ||
+                result.windows.device ||
+                result.other.device;
+        result.phone =
+            result.apple.phone || result.android.phone || result.windows.phone;
+        result.tablet =
+            result.apple.tablet || result.android.tablet || result.windows.tablet;
+        return result;
+    }
+
+    return hoster.isMobile = check();
+});
+
 define('skylark-langx-hoster/main',[
-	"./hoster"
+	"./hoster",
+	"./isMobile"
 ],function(hoster){
 	return hoster;
 });
@@ -3207,6 +3370,15 @@ define('skylark-langx-events/Emitter',[
     }
 
     var Emitter = Listener.inherit({
+        _prepareArgs : function(e,args) {
+            if (isDefined(args)) {
+                args = [e].concat(args);
+            } else {
+                args = [e];
+            }
+            return args;
+        },
+
         on: function(events, selector, data, callback, ctx, /*used internally*/ one) {
             var self = this,
                 _hub = this._hub || (this._hub = {});
@@ -3280,11 +3452,9 @@ define('skylark-langx-events/Emitter',[
             });
 
             var args = slice.call(arguments, 1);
-            if (isDefined(args)) {
-                args = [e].concat(args);
-            } else {
-                args = [e];
-            }
+
+            args = this._prepareArgs(e,args);
+
             [e.type || e.name, "all"].forEach(function(eventName) {
                 var parsed = parse(eventName),
                     name = parsed.name,
@@ -10318,6 +10488,12 @@ define('skylark-domx-browser/browser',[
         };
     }
 
+    browser.support.cssPointerEvents =  (function() {
+        testEl.style.cssText = 'pointer-events:auto';
+        return testEl.style.pointerEvents === 'auto';
+    })(),
+
+
     testEl = null;
 
     return skylark.attach("domx.browser",browser);
@@ -10668,6 +10844,9 @@ function removeSelfClosingTags(xml) {
         return focusableIfVisible && $( element ).is( ":visible" ) && visible( $( element ) );
     };
 
+    function fromPoint(x,y) {
+        return document.elementFromPoint(x,y);
+    }
 
    var rxhtmlTag = /<(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>/gi;
  
@@ -10953,6 +11132,22 @@ function removeSelfClosingTags(xml) {
         }
     }
 
+
+
+    function isInput (el) { 
+        return el.tagName === 'INPUT' || 
+               el.tagName === 'TEXTAREA' || 
+               el.tagName === 'SELECT' || 
+               isEditable(el); 
+    }
+    
+    function isEditable (el) {
+      if (!el) { return false; } // no parents were editable
+      if (el.contentEditable === 'false') { return false; } // stop the lookup
+      if (el.contentEditable === 'true') { return true; } // found a contentEditable element in the chain
+      return isEditable(el.parentNode); // contentEditable is set to 'inherit'
+    }
+
     function noder() {
         return noder;
     }
@@ -10984,7 +11179,6 @@ function removeSelfClosingTags(xml) {
 
         createFragment: createFragment,
 
-     
         createTextNode: createTextNode,
 
         doc: doc,
@@ -10995,6 +11189,8 @@ function removeSelfClosingTags(xml) {
 
         focusable: focusable,
 
+        fromPoint,
+
         html: html,
 
         isActive,
@@ -11003,7 +11199,12 @@ function removeSelfClosingTags(xml) {
 
         isDocument: isDocument,
 
+        isEditable,
+        
         isInDocument: isInDocument,
+
+        isInput,
+
 
         isWindow: langx.isWindow,
 
@@ -11740,7 +11941,7 @@ define('skylark-domx-finder/finder',[
          * @param {Object} elm
          */
         'parent': function(elm) {
-            return !!elm.parentNode;
+            return !!elm.parentElement;
         },
 
         'selected': function(elm) {
@@ -12131,7 +12332,7 @@ define('skylark-domx-finder/finder',[
      */
     function ancestor(node, selector, root) {
         var rootIsSelector = root && langx.isString(root);
-        while (node = node.parentNode) {
+        while (node = node.parentElement) {
             if (matches(node, selector)) {
                 return node;
             }
@@ -12157,7 +12358,7 @@ define('skylark-domx-finder/finder',[
     function ancestors(node, selector, root) {
         var ret = [],
             rootIsSelector = root && langx.isString(root);
-        while ((node = node.parentNode) && (node.nodeType !== 9)) {
+        while ((node = node.parentElement) && (node.nodeType !== 9)) {
             if (root) {
                 if (rootIsSelector) {
                     if (matches(node, root)) {
@@ -12212,14 +12413,40 @@ define('skylark-domx-finder/finder',[
         return ret;
     }
 
-    function closest(node, selector) {
-        while (node && !(matches(node, selector))) {
-            node = node.parentNode;
+
+
+    //function closest(node, selector) {
+    //    while (node && !(matches(node, selector))) {
+    //        node = node.parentElement;
+    //    }
+    //   return node;
+    //}
+
+
+    function closest(/**HTMLElement*/elm, /**String*/selector, /**HTMLElement*/ctx, includeCTX) {
+        if (elm) {
+            ctx = ctx || document;
+
+            do {
+                if (
+                    selector != null &&
+                    (
+                        selector[0] === '>' ?
+                        elm.parentElement === ctx && matches(elm, selector) :
+                        matches(elm, selector)
+                    ) ||
+                    includeCTX && elm === ctx
+                ) {
+                    return elm;
+                }
+
+                if (elm === ctx) break;
+                /* jshint boss:true */
+            } while (elm = parent(elm));
         }
 
-        return node;
+        return null;
     }
-
     /*
      * Get the decendant of the specified element , optionally filtered by a selector.
      * @param {HTMLElement} elm
@@ -12308,6 +12535,37 @@ define('skylark-domx-finder/finder',[
 
         return null;
     }
+
+
+    /**
+     * Returns the index of an element within its parent for a selected set of
+     * elements
+     * @param  {HTMLElement} el
+     * @param  {selector} selector
+     * @return {number}
+     */
+    function index(el, selector) {
+        var index = 0;
+
+        if (!el || !el.parentNode) {
+            return -1;
+        }
+
+        while (el && (el = el.previousElementSibling)) {
+            if (langx.isString(selector)) {
+                if (matches(el, selector)) {
+                    index++;
+                }
+            } else if (langx.isFunction(selector)) {
+                if (selector(el)) {
+                    index++;
+                }
+            }
+            index++;
+        }
+
+        return index;
+    }    
 
     /*
      * Get the last child of the specified element , optionally filtered by a selector.
@@ -12407,7 +12665,8 @@ define('skylark-domx-finder/finder',[
      * @param {String optionlly} selector
      */
     function parent(elm, selector) {
-        var node = elm.parentNode;
+        var node = (elm.host && elm !== document && elm.host.nodeType) ? elm.host : elm.parentElement;
+
         if (node && (!selector || matches(node, selector))) {
             return node;
         }
@@ -12462,7 +12721,7 @@ define('skylark-domx-finder/finder',[
      * @param {String optionlly} selector
      */
     function siblings(elm, selector) {
-        var node = elm.parentNode.firstChild,
+        var node = elm.parentElement.firstChild,
             ret = [];
         while (node) {
             if (node.nodeType == 1 && node !== elm) {
@@ -12500,6 +12759,8 @@ define('skylark-domx-finder/finder',[
         findAll: findAll,
 
         firstChild: firstChild,
+
+        index,
 
         lastChild: lastChild,
 
@@ -15003,10 +15264,13 @@ define('skylark-domx-styler/styler',[
      * @param {Any} value
      */
     function css(elm, property, value) {
-        if (arguments.length < 3) {
+        //if (arguments.length < 3) {
+        if (value == void 0) {
             var computedStyle,
                 computedStyle = getStyles(elm)
-            if (langx.isString(property)) {
+            if (property == void 0) {
+                return computedStyle;
+            } else if (langx.isString(property)) {
                 return elm.style[camelCase(property)] || computedStyle.getPropertyValue(dasherize(property))
             } else if (langx.isArrayLike(property)) {
                 var props = {}
@@ -15237,6 +15501,8 @@ define('skylark-domx-geom/geom',[
 
         return (cachedScrollbarWidth = w1 - w2);
     }
+
+    
     /*
      * Get the widths of each border of the specified element.
      * @param {HTMLElement} elm
@@ -17711,7 +17977,7 @@ define('skylark-domx-transforms/transforms',[
         scale < 0 && scale < zoom ? -zoom : 0;
   }
 
-    function change(el,d) {
+  function change(el,d) {
       var matrix = getMatrix(d.radian, d.y, d.x);
       styler.css(el,css3Transform, "matrix("
         + matrix.M11.toFixed(16) + "," + matrix.M21.toFixed(16) + ","
@@ -17794,6 +18060,27 @@ define('skylark-domx-transforms/transforms',[
     }
   }
   
+
+  function matrix(el) {
+    var appliedTransforms = '';
+    do {
+      var transform = styler.css(el, 'transform');
+
+      if (transform && transform !== 'none') {
+        appliedTransforms = transform + ' ' + appliedTransforms;
+      }
+      /* jshint boss:true */
+    } while (el = el.parentNode);
+
+    if (window.DOMMatrix) {
+      return new DOMMatrix(appliedTransforms);
+    } else if (window.WebKitCSSMatrix) {
+      return new WebKitCSSMatrix(appliedTransforms);
+    } else if (window.CSSMatrix) {
+      return new CSSMatrix(appliedTransforms);
+    }
+  }
+   
   function transforms() {
     return transforms;
   }
@@ -17811,7 +18098,8 @@ define('skylark-domx-transforms/transforms',[
       }
       change(el,d);
       transformData(el,d);
-    }
+    },
+    matrix
   });
 
 
