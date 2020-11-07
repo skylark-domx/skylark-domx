@@ -10859,6 +10859,25 @@ function removeSelfClosingTags(xml) {
         return document.elementFromPoint(x,y);
     }
 
+    /**
+     * Generate id
+     * @param   {HTMLElement} el
+     * @returns {String}
+     * @private
+     */
+    function generateId(el) {
+        var str = el.tagName + el.className + el.src + el.href + el.textContent,
+            i = str.length,
+            sum = 0;
+
+        while (i--) {
+            sum += str.charCodeAt(i);
+        }
+
+        return sum.toString(36);
+    }
+
+
    var rxhtmlTag = /<(?!area|br|col|embed|hr|img|input|link|meta|param)(([\w:]+)[^>]*)\/>/gi;
  
     /*   
@@ -11195,6 +11214,8 @@ function removeSelfClosingTags(xml) {
         doc: doc,
 
         empty: empty,
+
+        generateId,
 
         fullScreen: fullScreen,
 
