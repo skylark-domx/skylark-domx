@@ -525,10 +525,9 @@ define('skylark-langx-types/main',[
 define('skylark-langx-types', ['skylark-langx-types/main'], function (main) { return main; });
 
 define('skylark-langx-objects/objects',[
-    "skylark-langx-ns/ns",
-    "skylark-langx-ns/_attach",
+    "skylark-langx-ns",
 	"skylark-langx-types"
-],function(skylark,_attach,types){
+],function(skylark,types){
 	var hasOwnProperty = Object.prototype.hasOwnProperty,
         slice = Array.prototype.slice,
         isBoolean = types.isBoolean,
@@ -970,7 +969,7 @@ define('skylark-langx-objects/objects',[
     return skylark.attach("langx.objects",{
         allKeys: allKeys,
 
-        attach : _attach,
+        attach : skylark.attach,
 
         clone: clone,
 
@@ -1015,13 +1014,13 @@ define('skylark-langx-objects/main',[
 define('skylark-langx-objects', ['skylark-langx-objects/main'], function (main) { return main; });
 
 define('skylark-langx-arrays/arrays',[
-  "skylark-langx-ns/ns",
+  "skylark-langx-ns",
   "skylark-langx-types",
   "skylark-langx-objects"
 ],function(skylark,types,objects){
-  var filter = Array.prototype.filter,
-      find = Array.prototype.find,
-    isArrayLike = types.isArrayLike;
+    var filter = Array.prototype.filter,
+        find = Array.prototype.find,
+        isArrayLike = types.isArrayLike;
 
     /**
      * The base implementation of `_.findIndex` and `_.findLastIndex` without
@@ -1233,7 +1232,9 @@ define('skylark-langx-arrays/arrays',[
 
         inArray: inArray,
 
-        makeArray: makeArray,
+        makeArray: makeArray, // 
+
+        toArray : makeArray,
 
         merge : merge,
 
@@ -1260,7 +1261,7 @@ define('skylark-langx/arrays',[
   return arrays;
 });
 define('skylark-langx-klass/klass',[
-  "skylark-langx-ns/ns",
+  "skylark-langx-ns",
   "skylark-langx-types",
   "skylark-langx-objects",
   "skylark-langx-arrays",
@@ -2005,7 +2006,7 @@ define('skylark-langx/aspect',[
   return aspect;
 });
 define('skylark-langx-funcs/funcs',[
-  "skylark-langx-ns/ns",
+  "skylark-langx-ns",
 ],function(skylark,types,objects){
         
 
@@ -2708,7 +2709,7 @@ define('skylark-langx/async',[
     return async;
 });
 define('skylark-langx-binary/binary',[
-  "skylark-langx-ns/ns",
+  "skylark-langx-ns",
 ],function(skylark){
 	"use strict";
 
@@ -2887,9 +2888,9 @@ define('skylark-langx/datetimes',[
     return datetimes;
 });
 define('skylark-langx/Deferred',[
-    "skylark-langx-async/Deferred"
-],function(Deferred){
-    return Deferred;
+    "skylark-langx-async"
+],function(async){
+    return async.Deferred;
 });
 define('skylark-langx-events/events',[
 	"skylark-langx-ns"
@@ -3157,8 +3158,9 @@ define('skylark-langx-events/Event',[
   "skylark-langx-objects",
   "skylark-langx-funcs",
   "skylark-langx-klass",
-  "skylark-langx-hoster"
-],function(objects,funcs,klass){
+  "skylark-langx-hoster",
+    "./events"
+],function(objects,funcs,klass,events){
     var eventMethods = {
         preventDefault: "isDefaultPrevented",
         stopImmediatePropagation: "isImmediatePropagationStopped",
@@ -3206,7 +3208,7 @@ define('skylark-langx-events/Event',[
 
     Event.compatible = compatible;
 
-    return Event;
+    return events.Event = Event;
     
 });
 define('skylark-langx-events/Listener',[
@@ -3565,16 +3567,6 @@ define('skylark-langx-events/Emitter',[
     return events.Emitter = Emitter;
 
 });
-define('skylark-langx/Emitter',[
-    "skylark-langx-events/Emitter"
-],function(Emitter){
-    return Emitter;
-});
-define('skylark-langx/Evented',[
-    "./Emitter"
-],function(Emitter){
-    return Emitter;
-});
 define('skylark-langx-events/createEvent',[
 	"./events",
 	"./Event"
@@ -3598,6 +3590,16 @@ define('skylark-langx-events/main',[
 });
 define('skylark-langx-events', ['skylark-langx-events/main'], function (main) { return main; });
 
+define('skylark-langx/Emitter',[
+    "skylark-langx-events"
+],function(events){
+    return events.Emitter;
+});
+define('skylark-langx/Evented',[
+    "./Emitter"
+],function(Emitter){
+    return Emitter;
+});
 define('skylark-langx/events',[
 	"skylark-langx-events"
 ],function(events){
@@ -3715,13 +3717,13 @@ define('skylark-langx-maths/maths',[
 
 		degToRad: function ( degrees ) {
 
-			return degrees * MathUtils.DEG2RAD;
+			return degrees * maths.DEG2RAD;
 
 		},
 
 		radToDeg: function ( radians ) {
 
-			return radians * MathUtils.RAD2DEG;
+			return radians * maths.RAD2DEG;
 
 		},
 
@@ -10187,21 +10189,11 @@ define('skylark-langx/Stateful',[
 
 	return Stateful;
 });
-define('skylark-langx-emitter/Emitter',[
-    "skylark-langx-events/Emitter"
-],function(Emitter){
-    return Emitter;
-});
-define('skylark-langx-emitter/Evented',[
-	"./Emitter"
-],function(Emitter){
-	return Emitter;
-});
 define('skylark-langx-topic/topic',[
 	"skylark-langx-ns",
-	"skylark-langx-emitter/Evented"
-],function(skylark,Evented){
-	var hub = new Evented();
+	"skylark-langx-events"
+],function(skylark,events){
+	var hub = new events.Emitter();
 
 	return skylark.attach("langx.topic",{
 	    publish: function(name, arg1,argn) {
