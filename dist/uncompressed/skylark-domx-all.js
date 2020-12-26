@@ -17549,7 +17549,7 @@ define('skylark-domx-plugins/plugins',[
                 throw new Error ("The plugin instance is not existed");
             }
             pluginInstance.destroy();
-            datax.removeData( elm, pluginName);
+            //datax.removeData( elm, pluginName);
             pluginInstance = undefined;
         } else {
             if (!pluginInstance) {
@@ -17824,7 +17824,7 @@ define('skylark-domx-plugins/plugins',[
     $.fn.plugin = function(name,options) {
         var args = slice.call( arguments, 1 ),
             self = this,
-            returnValue = this;
+            returnValue ;
 
         this.each(function(){
             returnValue = instantiate.apply(self,[this,name].concat(args));
