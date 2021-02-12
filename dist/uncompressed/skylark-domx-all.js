@@ -526,15 +526,15 @@ define('skylark-langx-types', ['skylark-langx-types/main'], function (main) { re
 
 define('skylark-langx-objects/objects',[
     "skylark-langx-ns",
-	"skylark-langx-types"
+    "skylark-langx-types"
 ],function(skylark,types){
-	var hasOwnProperty = Object.prototype.hasOwnProperty,
+    var hasOwnProperty = Object.prototype.hasOwnProperty,
         slice = Array.prototype.slice,
         isBoolean = types.isBoolean,
         isFunction = types.isFunction,
-		isObject = types.isObject,
-		isPlainObject = types.isPlainObject,
-		isArray = types.isArray,
+        isObject = types.isObject,
+        isPlainObject = types.isPlainObject,
+        isArray = types.isArray,
         isArrayLike = types.isArrayLike,
         isString = types.isString,
         toInteger = types.toInteger;
@@ -968,7 +968,7 @@ define('skylark-langx-objects/objects',[
 
     function scall(obj,method,arg1,arg2) {
         if (obj && obj[method]) {
-            var args = (2 in arguments) && slice.call(arguments, 2);
+            var args = slice.call(arguments, 2);
 
             return obj[method].apply(obj,args);
         }
@@ -13355,7 +13355,11 @@ define('skylark-domx-data/data',[
                 }
             }
             var attrName = 'data-' + name.replace(capitalRE, "-$1").toLowerCase()
-            return attr(elm, attrName);
+            var value = attr(elm, attrName);
+            if (!langx.isString(value)) {
+              value = undefined;
+            }
+            return value;
         }
 
     }
@@ -14989,6 +14993,8 @@ define('skylark-domx-eventer/eventer',[
                             args = [e];
                         }
 
+                        e.type = self._event; // convert realEvent to listened event
+
                         langx.each(bindings, function(idx, binding) {
                             var match = elm;
                             if (e.isImmediatePropagationStopped && e.isImmediatePropagationStopped()) {
@@ -15551,6 +15557,26 @@ define('skylark-domx/finder',[
 
     return finder;
 });
+define('skylark-domx-fx/fx',[
+    "skylark-langx/skylark",
+    "skylark-langx/langx"
+], function(skylark,langx) {
+
+    function fx() {
+        return fx;
+    }
+
+    langx.mixin(fx, {
+        off: false,
+        speeds: {
+            normal: 400,
+            fast: 200,
+            slow: 600
+        }
+    });
+
+    return skylark.attach("domx.fx", fx);
+});
 define('skylark-domx-geom/geom',[
     "skylark-langx/skylark",
     "skylark-langx/langx",
@@ -15938,8 +15964,8 @@ define('skylark-domx-geom/geom',[
 
             // Subtract parent offsets and element margins
             return {
-                top: offset.top - parentOffset.top - pbex.top, // - mex.top,
-                left: offset.left - parentOffset.left - pbex.left, // - mex.left
+                top: offset.top - parentOffset.top - pbex.top - mex.top,
+                left: offset.left - parentOffset.left - pbex.left - mex.left
             }
         } else {
             var props = {
@@ -16803,15 +16829,16 @@ define('skylark-domx-geom/main',[
 });
 define('skylark-domx-geom', ['skylark-domx-geom/main'], function (main) { return main; });
 
-define('skylark-domx-fx/fx',[
-    "skylark-langx/skylark",
+define('skylark-domx-fx/animate',[
     "skylark-langx/langx",
     "skylark-domx-browser",
     "skylark-domx-noder",
     "skylark-domx-geom",
     "skylark-domx-styler",
-    "skylark-domx-eventer"
-], function(skylark, langx, browser, noder, geom, styler, eventer) {
+    "skylark-domx-eventer",
+    "./fx"
+], function(langx, browser, noder, geom, styler, eventer,fx) {
+
     var animationName,
         animationDuration,
         animationTiming,
@@ -16838,8 +16865,6 @@ define('skylark-domx-fx/fx',[
         cssReset[transitionDuration = browser.normalizeCssProperty("transition-duration")] =
         cssReset[transitionDelay = browser.normalizeCssProperty("transition-delay")] =
         cssReset[transitionTiming = browser.normalizeCssProperty("transition-timing-function")] = "";
-
-
 
     /*   
      * Perform a custom animation of a set of CSS properties.
@@ -16988,91 +17013,146 @@ define('skylark-domx-fx/fx',[
         return this;
     }
 
-    /*   
-     * Display an element.
-     * @param {Object} elm  
-     * @param {String} speed
-     * @param {Function} callback
-     */
-    function show(elm, speed, callback) {
-        styler.show(elm);
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
-            }
-            styler.css(elm, "opacity", 0)
-            animate(elm, { opacity: 1, scale: "1,1" }, speed, callback);
+    return fx.animate = animate;
+
+});
+define('skylark-domx-fx/bounce',[
+    "skylark-langx/langx",
+    "skylark-domx-geom",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate"
+],function(langx,geom,styler,fx,animate) {
+
+    function bounce(elm, options, done ) {
+        var upAnim, downAnim, refValue,
+            // Defaults:
+            mode = options.mode,
+            hide = mode === "hide",
+            show = mode === "show",
+            direction = options.direction || "up",
+            start,
+            distance = options.distance,
+            times = options.times || 5,
+
+            // Number of internal animations
+            anims = times * 2 + ( show || hide ? 1 : 0 ),
+            speed = options.duration / anims,
+            easing = options.easing,
+
+            // Utility:
+            ref = ( direction === "up" || direction === "down" ) ? "top" : "left",
+            motion = ( direction === "up" || direction === "left" ),
+            i = 0;
+
+        //createPlaceholder(elm);
+
+        var Deferred = langx.Deferred;
+        var funcs = [];
+
+        refValue = styler.css(elm,ref );
+
+        // Default distance for the BIGGEST bounce is the outer Distance / 3
+        if ( !distance ) {
+            var msize = geom.size(elm);
+            distance = (ref === "top" ? msize.height : msize.width) / 3;
         }
-        return this;
-    }
 
+        start = geom.relativePosition(elm)[ref];
 
-    /*   
-     * Hide an element.
-     * @param {Object} elm  
-     * @param {String} speed
-     * @param {Function} callback
-     */
-    function hide(elm, speed, callback) {
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
-            }
-            animate(elm, { opacity: 0, scale: "0,0" }, speed, function() {
-                styler.hide(elm);
-                if (callback) {
-                    callback.call(elm);
-                }
-            });
-        } else {
-            styler.hide(elm);
+        if ( show ) {
+            downAnim = { opacity: 1 };
+            downAnim[ ref ] = refValue;
+
+            // If we are showing, force opacity 0 and set the initial position
+            // then do the "first" animation
+            styler.css(elm, "opacity", 0 );
+            styler.css(elm, ref, start + (motion ? -distance * 2 : distance * 2 ));
+
+            funcs.push(doAnimate(elm,downAnim, speed, easing));
         }
-        return this;
-    }
 
-    /*   
-     * Set the vertical position of the scroll bar for an element.
-     * @param {Object} elm  
-     * @param {Number or String} pos
-     * @param {Number or String} speed
-     * @param {Function} callback
-     */
-    function scrollToTop(elm, pos, speed, callback) {
-        var scrollFrom = parseInt(elm.scrollTop),
-            i = 0,
-            runEvery = 5, // run every 5ms
-            freq = speed * 1000 / runEvery,
-            scrollTo = parseInt(pos);
-
-        var interval = setInterval(function() {
-            i++;
-
-            if (i <= freq) elm.scrollTop = (scrollTo - scrollFrom) / freq * i + scrollFrom;
-
-            if (i >= freq + 1) {
-                clearInterval(interval);
-                if (callback) langx.debounce(callback, 1000)();
-            }
-        }, runEvery);
-    }
-
-    /*   
-     * Display or hide an element.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {Function} callback
-     */
-    function toggle(elm, speed, callback) {
-        if (styler.isInvisible(elm)) {
-            show(elm, speed, callback);
-        } else {
-            hide(elm, speed, callback);
+        // Start at the smallest distance if we are hiding
+        if ( hide ) {
+            distance = distance / Math.pow( 2, times - 1 );
         }
-        return this;
-    }
 
+        downAnim = {};
+        downAnim[ ref ] = refValue;
+
+
+        function doAnimate(elm,properties, duration, easing) {
+            return function() {
+                var d = new Deferred();
+
+                animate(elm,properties, duration, easing ,function(){
+                    d.resolve();
+                });
+                return d.promise;
+
+            }
+        }
+
+        // Bounces up/down/left/right then back to 0 -- times * 2 animations happen here
+        for ( ; i < times; i++ ) {
+            upAnim = {};
+            upAnim[ ref ] = start + ( motion ? -distance : distance) ;
+
+            funcs.push(doAnimate(elm,upAnim, speed, easing));
+
+            funcs.push(doAnimate(elm,downAnim, speed, easing));
+
+            distance = hide ? distance * 2 : distance / 2;
+        }
+
+        // Last Bounce when Hiding
+        if ( hide ) {
+            upAnim = { opacity: 0 };
+            upAnim[ ref ] = start + ( motion ? -1 * distance : distance) ;
+
+            funcs.push(doAnimate(elm,upAnim, speed, easing ));
+        }
+
+        funcs.push(done);
+        funcs.reduce(function(prev, curr, index, array) {
+            return prev.then(curr);
+        }, Deferred.resolve());
+
+    } 
+
+    return fx.bounce = bounce;
+});
+define('skylark-domx-fx/emulateTransitionEnd',[
+    "skylark-langx/langx",
+    "skylark-domx-eventer",
+    "./fx"
+],function(langx,eventer,fx) {
+    
+    function emulateTransitionEnd(elm,duration) {
+        var called = false;
+        eventer.one(elm,'transitionEnd', function () { 
+            called = true;
+        })
+        var callback = function () { 
+            if (!called) {
+                eventer.trigger(elm,browser.support.transition.end) 
+            }
+        };
+        setTimeout(callback, duration);
+        
+        return this;
+    } 
+
+
+
+    return fx.emulateTransitionEnd = emulateTransitionEnd;
+});
+define('skylark-domx-fx/fadeTo',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate"
+],function(langx,styler,fx,animate) {
     /*   
      * Adjust the opacity of an element.
      * @param {Object} elm  
@@ -17087,6 +17167,14 @@ define('skylark-domx-fx/fx',[
     }
 
 
+    return fx.fadeTo = fadeTo;
+});
+define('skylark-domx-fx/fadeIn',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./fadeTo"
+],function(langx,styler,fx,fadeTo) {
     /*   
      * Display an element by fading them to opaque.
      * @param {Object} elm  
@@ -17108,6 +17196,15 @@ define('skylark-domx-fx/fx',[
         return this;
     }
 
+
+    return fx.fadeIn = fadeIn;
+});
+define('skylark-domx-fx/fadeOut',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./fadeTo"
+],function(langx,styler,fx,fadeTo) {
     /*   
      * Hide an element by fading them to transparent.
      * @param {Object} elm  
@@ -17147,6 +17244,16 @@ define('skylark-domx-fx/fx',[
         return this;
     }
 
+    return fx.fadeOut = fadeOut;
+});
+define('skylark-domx-fx/fadeToggle',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./fadeIn",
+    "./fadeOut"
+],function(langx,styler,fx,fadeIn,fadeOut) {
+
     /*   
      * Display or hide an element by animating its opacity.
      * @param {Object} elm  
@@ -17154,7 +17261,7 @@ define('skylark-domx-fx/fx',[
      * @param {String} ceasing
      * @param {Function} callback
      */
-    function fadeToggle(elm, speed, ceasing, allback) {
+    function fadeToggle(elm, speed, easing, callback) {
         if (styler.isInvisible(elm)) {
             fadeIn(elm, speed, easing, callback);
         } else {
@@ -17163,6 +17270,75 @@ define('skylark-domx-fx/fx',[
         return this;
     }
 
+
+    return fx.fadeToggle = fadeToggle;
+});
+define('skylark-domx-fx/hide',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate"
+],function(langx,styler,fx,animate) {
+    /*   
+     * Hide an element.
+     * @param {Object} elm  
+     * @param {String} speed
+     * @param {Function} callback
+     */
+    function hide(elm, speed, callback) {
+        if (speed) {
+            if (!callback && langx.isFunction(speed)) {
+                callback = speed;
+                speed = "normal";
+            }
+            animate(elm, { opacity: 0, scale: "0,0" }, speed, function() {
+                styler.hide(elm);
+                if (callback) {
+                    callback.call(elm);
+                }
+            });
+        } else {
+            styler.hide(elm);
+        }
+        return this;
+    }
+
+    return fx.hide = hide;
+});
+define('skylark-domx-fx/show',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate"
+],function(langx,styler,fx,animate) {
+    /*   
+     * Display an element.
+     * @param {Object} elm  
+     * @param {String} speed
+     * @param {Function} callback
+     */
+    function show(elm, speed, callback) {
+        styler.show(elm);
+        if (speed) {
+            if (!callback && langx.isFunction(speed)) {
+                callback = speed;
+                speed = "normal";
+            }
+            styler.css(elm, "opacity", 0)
+            animate(elm, { opacity: 1, scale: "1,1" }, speed, callback);
+        }
+        return this;
+    }
+
+    return fx.show = show;
+});
+define('skylark-domx-fx/slideDown',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate",
+    "./show"
+],function(langx,styler,fx,animate,show) {
     /*   
      * Display an element with a sliding motion.
      * @param {Object} elm  
@@ -17221,6 +17397,15 @@ define('skylark-domx-fx/fx',[
         return this;
     }
 
+    return fx.slideDown = slideDown;
+});
+define('skylark-domx-fx/slideUp',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate",
+    "./hide"
+],function(langx,styler,fx,animate,hide) {
     /*   
      * Hide an element with a sliding motion.
      * @param {Object} elm  
@@ -17284,6 +17469,17 @@ define('skylark-domx-fx/fx',[
     }
 
 
+
+    return fx.slideUp = slideUp;
+});
+define('skylark-domx-fx/slideToggle',[
+    "skylark-langx/langx",
+    "skylark-domx-geom",
+    "./fx",
+    "./slideDown",
+    "./slideUp"
+],function(langx,geom,fx,slideDown,slideUp) {
+
     /*   
      * Display or hide an element with a sliding motion.
      * @param {Object} elm  
@@ -17303,41 +17499,16 @@ define('skylark-domx-fx/fx',[
         return this;
     }
 
-    function emulateTransitionEnd(elm,duration) {
-        var called = false;
-        eventer.one(elm,'transitionEnd', function () { 
-            called = true;
-        })
-        var callback = function () { 
-            if (!called) {
-                eventer.trigger(elm,browser.support.transition.end) 
-            }
-        };
-        setTimeout(callback, duration);
-        
-        return this;
-    } 
+    return fx.slideToggle = slideToggle;
+});
+define('skylark-domx-fx/throb',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "skylark-domx-noder",
+    "./fx",
+    "./animate"
+],function(langx,styler,noder,fx,animate) {
 
-    /*   
-     *
-     * @param {Node} elm
-     * @param {Node} params
-     */
-    function overlay(elm, params) {
-        var overlayDiv = noder.createElement("div", params);
-        styler.css(overlayDiv, {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: 0x7FFFFFFF,
-            opacity: 0.7
-        });
-        elm.appendChild(overlayDiv);
-        return overlayDiv;
-
-    }
     
     /*   
      * Replace an old node with the specified node.
@@ -17356,11 +17527,11 @@ define('skylark-domx-fx/fx',[
             throbber = noder.createElement("div", {
                 "class": params.className || "throbber"
             }),
-            _overlay = overlay(throbber, {
-                "class": 'overlay fade'
-            }),
+            //_overlay = overlay(throbber, {
+            //    "class": 'overlay fade'
+            //}),
             throb = noder.createElement("div", {
-                "class": "throb"
+                "class": params.throb && params.throb.className || "throb"
             }),
             textNode = noder.createTextNode(text || ""),
             remove = function() {
@@ -17398,42 +17569,50 @@ define('skylark-domx-fx/fx',[
         };
     }
 
-    function fx() {
-        return fx;
+    return fx.throb = throb;
+});
+define('skylark-domx-fx/toggle',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./show",
+    "./hide"
+],function(langx,styler,fx,show,hide) {
+    /*   
+     * Display or hide an element.
+     * @param {Object} elm  
+     * @param {Number or String} speed
+     * @param {Function} callbacke
+     */
+    function toggle(elm, speed, callback) {
+        if (styler.isInvisible(elm)) {
+            show(elm, speed, callback);
+        } else {
+            hide(elm, speed, callback);
+        }
+        return this;
     }
 
-    langx.mixin(fx, {
-        off: false,
-
-        speeds: {
-            normal: 400,
-            fast: 200,
-            slow: 600
-        },
-
-        animate,
-        emulateTransitionEnd,
-        fadeIn,
-        fadeOut,
-        fadeTo,
-        fadeToggle,
-        hide,
-        scrollToTop,
-
-        slideDown,
-        slideToggle,
-        slideUp,
-        show,
-        throb,
-        toggle
-    });
-
-    return skylark.attach("domx.fx", fx);
+    return fx.toggle = toggle;
 });
 define('skylark-domx-fx/main',[
 	"./fx",
 	"skylark-domx-velm",
-	"skylark-domx-query"	
+	"skylark-domx-query",
+    "./animate",
+    "./bounce",
+    "./emulateTransitionEnd",
+    "./fadeIn",
+    "./fadeOut",
+    "./fadeTo",
+    "./fadeToggle",
+    "./hide",
+    "./show",
+    "./slideDown",
+    "./slideToggle",
+    "./slideUp",
+    "./throb",
+    "./toggle"
 ],function(fx,velm,$){
     // from ./fx
     velm.delegate([
