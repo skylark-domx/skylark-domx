@@ -11722,7 +11722,7 @@ define('skylark-domx-styler/styler',[
     }
 
     function isInvisible(elm) {
-        return styler.css(elm, "display") == "none" || styler.css(elm, "opacity") == 0;
+        return styler.css(elm, "display") == "none" || styler.css(elm, "opacity") == 0 || styler.css(elm,"visibility") == "hidden";
     }
 
     /*
@@ -17118,6 +17118,7 @@ define('skylark-domx-fx/bounce',[
             return prev.then(curr);
         }, Deferred.resolve());
 
+        return this;
     } 
 
     return fx.bounce = bounce;
@@ -17147,131 +17148,32 @@ define('skylark-domx-fx/emulateTransitionEnd',[
 
     return fx.emulateTransitionEnd = emulateTransitionEnd;
 });
-define('skylark-domx-fx/fadeTo',[
+define('skylark-domx-fx/show',[
     "skylark-langx/langx",
     "skylark-domx-styler",
     "./fx",
     "./animate"
 ],function(langx,styler,fx,animate) {
     /*   
-     * Adjust the opacity of an element.
+     * Display an element.
      * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {Number or String} opacity
-     * @param {String} easing
+     * @param {String} speed
      * @param {Function} callback
      */
-    function fadeTo(elm, speed, opacity, easing, callback) {
-        animate(elm, { opacity: opacity }, speed, easing, callback);
-        return this;
-    }
-
-
-    return fx.fadeTo = fadeTo;
-});
-define('skylark-domx-fx/fadeIn',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./fadeTo"
-],function(langx,styler,fx,fadeTo) {
-    /*   
-     * Display an element by fading them to opaque.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeIn(elm, speed, easing, callback) {
-        var target = styler.css(elm, "opacity");
-        if (target > 0) {
-            styler.css(elm, "opacity", 0);
-        } else {
-            target = 1;
-        }
+    function show(elm, speed, callback) {
         styler.show(elm);
-
-        fadeTo(elm, speed, target, easing, callback);
-
-        return this;
-    }
-
-
-    return fx.fadeIn = fadeIn;
-});
-define('skylark-domx-fx/fadeOut',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./fadeTo"
-],function(langx,styler,fx,fadeTo) {
-    /*   
-     * Hide an element by fading them to transparent.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeOut(elm, speed, easing, callback) {
-        var _elm = elm,
-            complete,
-            opacity = styler.css(elm,"opacity"),
-            options = {};
-
-        if (langx.isPlainObject(speed)) {
-            options.easing = speed.easing;
-            options.duration = speed.duration;
-            complete = speed.complete;
-        } else {
-            options.duration = speed;
-            if (callback) {
-                complete = callback;
-                options.easing = easing;
-            } else {
-                complete = easing;
+        if (speed) {
+            if (!callback && langx.isFunction(speed)) {
+                callback = speed;
+                speed = "normal";
             }
-        }
-        options.complete = function() {
-            styler.css(elm,"opacity",opacity);
-            styler.hide(elm);
-            if (complete) {
-                complete.call(elm);
-            }
-        }
-
-        fadeTo(elm, options, 0);
-
-        return this;
-    }
-
-    return fx.fadeOut = fadeOut;
-});
-define('skylark-domx-fx/fadeToggle',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./fadeIn",
-    "./fadeOut"
-],function(langx,styler,fx,fadeIn,fadeOut) {
-
-    /*   
-     * Display or hide an element by animating its opacity.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} ceasing
-     * @param {Function} callback
-     */
-    function fadeToggle(elm, speed, easing, callback) {
-        if (styler.isInvisible(elm)) {
-            fadeIn(elm, speed, easing, callback);
-        } else {
-            fadeOut(elm, speed, easing, callback);
+            styler.css(elm, "opacity", 0)
+            animate(elm, { opacity: 1, scale: "1,1" }, speed, callback);
         }
         return this;
     }
 
-
-    return fx.fadeToggle = fadeToggle;
+    return fx.show = show;
 });
 define('skylark-domx-fx/hide',[
     "skylark-langx/langx",
@@ -17305,40 +17207,551 @@ define('skylark-domx-fx/hide',[
 
     return fx.hide = hide;
 });
-define('skylark-domx-fx/show',[
+define('skylark-domx-fx/explode',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "skylark-domx-geom",
+    "skylark-domx-noder",
+    "skylark-domx-query",
+    "./fx",
+    "./animate",
+    "./show",
+    "./hide"
+],function(langx,styler,geom,noder,$,fx,animate,show,hide) {
+
+    function explode( elm,options, done ) {
+
+		// Show and then visibility:hidden the element before calculating offset
+		styler.show(elm);
+		styler.css(elm, "visibility", "hidden" );
+
+		var i, j, left, top, mx, my,
+			rows = options.pieces ? Math.round( Math.sqrt( options.pieces ) ) : 3,
+			cells = rows,
+			mode = options.mode,
+			show = mode === "show",
+			offset = geom.pagePosition(elm),
+
+			// Width and height of a piece
+			size = geom.marginSize(elm),
+			width = Math.ceil( size.width / cells ),
+			height = Math.ceil( size.height / rows ),
+			pieces = [];
+
+		// Children animate complete:
+		function childComplete() {
+			pieces.push( this );
+			if ( pieces.length === rows * cells ) {
+				animComplete();
+			}
+		}
+
+		// Clone the element for each row and cell.
+		for ( var i = 0; i < rows; i++ ) { // ===>
+			top = offset.top + i * height;
+			my = i - ( rows - 1 ) / 2;
+
+			for ( j = 0; j < cells; j++ ) { // |||
+				left = offset.left + j * width;
+				mx = j - ( cells - 1 ) / 2;
+
+				// Create a clone of the now hidden main element that will be absolute positioned
+				// within a wrapper div off the -left and -top equal to size of our pieces
+				$(elm)
+					.clone()
+					.appendTo( "body" )
+					.wrap( "<div></div>" )
+					.css( {
+						position: "absolute",
+						visibility: "visible",
+						left: -j * width,
+						top: -i * height
+					} )
+
+					// Select the wrapper - make it overflow: hidden and absolute positioned based on
+					// where the original was located +left and +top equal to the size of pieces
+					.parent()
+						.addClass( options.explodeClass || "ui-effects-explode" )
+						.css( {
+							position: "absolute",
+							overflow: "hidden",
+							width: width,
+							height: height,
+							left: left + ( show ? mx * width : 0 ),
+							top: top + ( show ? my * height : 0 ),
+							opacity: show ? 0 : 1
+						} )
+						.animate( {
+							left: left + ( show ? 0 : mx * width ),
+							top: top + ( show ? 0 : my * height ),
+							opacity: show ? 1 : 0
+						}, options.duration || 500, options.easing, childComplete );
+			}
+		}
+
+		function animComplete() {
+			styler.css(elm, {
+				visibility: "visible"
+			} );
+			$( pieces ).remove();
+			done();
+		}
+
+		return this;
+	}
+
+
+	return fx.explode = explode;
+});
+
+define('skylark-domx-fx/fade',[
     "skylark-langx/langx",
     "skylark-domx-styler",
     "./fx",
     "./animate"
 ],function(langx,styler,fx,animate) {
     /*   
-     * Display an element.
+     * Adjust the opacity of an element.
      * @param {Object} elm  
-     * @param {String} speed
+     * @param {Number or String} speed
+     * @param {Number or String} opacity
+     * @param {String} easing
      * @param {Function} callback
      */
-    function show(elm, speed, callback) {
+    function fade(elm, opacity,options, callback) {
+        animate(elm, { opacity: opacity }, options.duration, options.easing, callback);
+        return this;
+    }
+
+
+    return fx.fade = fade;
+});
+define('skylark-domx-fx/fadeIn',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./fade"
+],function(langx,styler,fx,fadeTo) {
+    /*   
+     * Display an element by fading them to opaque.
+     * @param {Object} elm  
+     * @param {Number or String} duration
+     * @param {String} easing
+     * @param {Function} callback
+     */
+    function fadeIn(elm, duration, easing, callback) {
+        var target = styler.css(elm, "opacity");
+        if (target > 0) {
+            styler.css(elm, "opacity", 0);
+        } else {
+            target = 1;
+        }
         styler.show(elm);
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
+
+        fadeTo(elm,  target,{ duration, easing}, callback);
+
+        return this;
+    }
+
+
+    return fx.fadeIn = fadeIn;
+});
+define('skylark-domx-fx/fadeOut',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./fade"
+],function(langx,styler,fx,fadeTo) {
+    /*   
+     * Hide an element by fading them to transparent.
+     * @param {Object} elm  
+     * @param {Number or String} duration
+     * @param {String} easing
+     * @param {Function} callback
+     */
+    function fadeOut(elm, duration, easing, callback) {
+
+        function complete() {
+            styler.css(elm,"opacity",opacity);
+            styler.hide(elm);
+            if (callback) {
+                callback.call(elm);
             }
-            styler.css(elm, "opacity", 0)
-            animate(elm, { opacity: 1, scale: "1,1" }, speed, callback);
+        }
+
+        fadeTo(elm, 0,{duration,easing},callback);
+
+        return this;
+    }
+
+    return fx.fadeOut = fadeOut;
+});
+define('skylark-domx-fx/fadeToggle',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./fx",
+    "./fadeIn",
+    "./fadeOut"
+],function(langx,styler,fx,fadeIn,fadeOut) {
+
+    /*   
+     * Display or hide an element by animating its opacity.
+     * @param {Object} elm  
+     * @param {Number or String} speed
+     * @param {String} ceasing
+     * @param {Function} callback
+     */
+    function fadeToggle(elm, speed, easing, callback) {
+        if (styler.isInvisible(elm)) {
+            fadeIn(elm, speed, easing, callback);
+        } else {
+            fadeOut(elm, speed, easing, callback);
         }
         return this;
     }
 
-    return fx.show = show;
+
+    return fx.fadeToggle = fadeToggle;
 });
-define('skylark-domx-fx/slideDown',[
+define('skylark-domx-fx/pulsate',[
+    "skylark-langx/langx",
+    "skylark-domx-geom",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate"
+],function(langx,geom,styler,fx,animate) {
+
+	function pulsate(elm, options, done ) {
+		var 
+			mode = options.mode,
+			show = mode === "show" || !mode,
+			hide = mode === "hide",
+			showhide = show || hide,
+
+			// Showing or hiding leaves off the "last" animation
+			anims = ( ( options.times || 5 ) * 2 ) + ( showhide ? 1 : 0 ),
+			duration = options.duration / anims,
+			animateTo = 0,
+			i = 1;
+
+		if ( show || styler.isInvisible(elm) ) {
+			styler.css(elm, "opacity", 0 );
+			styler.show(elm);
+			animateTo = 1;
+		}
+
+		// Anims - 1 opacity "toggles"
+
+		var Deferred = langx.Deferred;
+		var funcs = [];
+
+		function doAnimate(elm,properties, duration, ease) {
+			return function() {
+				var d = new Deferred();
+
+				animate( elm,properties, duration, ease ,function(){
+					d.resolve();
+				});
+				return d.promise;
+
+			}
+		}
+
+
+		for ( ; i < anims; i++ ) {
+			funcs.push(doAnimate(elm,{ opacity: animateTo }, duration, options.easing ));
+			animateTo = 1 - animateTo;
+		}
+
+	    funcs.push(doAnimate(elm,{ opacity: animateTo }, duration, options.easing ));
+
+		funcs.push(done);
+		funcs.reduce(function(prev, curr, index, array) {
+	  		return prev.then(curr);
+		}, Deferred.resolve());
+
+		return this;
+
+	}
+
+	return fx.pulsate = pulsate;
+
+});
+
+define('skylark-domx-fx/shake',[
+    "skylark-langx/langx",
+    "skylark-domx-geom",
+    "skylark-domx-styler",
+    "./fx",
+    "./animate"
+],function(langx,geom,styler,fx,animate) {
+	function shake(elm, options, done ) {
+
+		var i = 1,
+			direction = options.direction || "left",
+			distance = options.distance || 20,
+			times = options.times || 3,
+			anims = times * 2 + 1,
+			speed = Math.round( options.duration / anims ),
+			ref = ( direction === "up" || direction === "down" ) ? "top" : "left",
+			positiveMotion = ( direction === "up" || direction === "left" ),
+			animation0 = {},
+			animation = {},
+			animation1 = {},
+			animation2 = {};
+
+		var Deferred = langx.Deferred;
+			start = geom.relativePosition(elm)[ref],
+			funcs = [];
+
+		function doAnimate(elm,properties, duration, ease) {
+			return function() {
+				var d = new Deferred();
+
+				animate(elm, properties, duration, ease ,function(){
+					d.resolve();
+				});
+				return d.promise;
+			}
+		}
+
+		// Animation
+		animation0[ ref ] = start;
+		animation[ ref ] = start + ( positiveMotion ? -1 : 1 ) * distance;
+		animation1[ ref ] = animation[ ref ] + ( positiveMotion ? 1 : -1 ) * distance * 2;
+		animation2[ ref ] = animation1[ ref ] + ( positiveMotion ? -1 : 1 ) * distance * 2;
+
+		// Animate
+	    funcs.push(doAnimate(elm,animation, speed, options.easing ));
+
+		// Shakes
+		for ( ; i < times; i++ ) {
+		    funcs.push(doAnimate(elm,animation1, speed, options.easing ));
+		    funcs.push(doAnimate(elm,animation2, speed, options.easing ));
+		}
+
+	    funcs.push(doAnimate(elm,animation0, speed /2 , options.easing ));
+
+		funcs.push(done);
+		funcs.reduce(function(prev, curr, index, array) {
+	  		return prev.then(curr);
+		}, Deferred.resolve());
+
+		return this;
+	}
+
+	return fx.shake = shake;
+
+});
+
+define('skylark-domx-fx/slide',[
     "skylark-langx/langx",
     "skylark-domx-styler",
     "./fx",
     "./animate",
-    "./show"
-],function(langx,styler,fx,animate,show) {
+    "./show",
+    "./hide"
+],function(langx,styler,fx,animate,show,hide) {
+
+    function slide(elm,options,callback ) {
+    	if (langx.isFunction(options)) {
+    		callback = options;
+    		options = {};
+    	}
+		var direction = options.direction || "down",
+			isHide = ( direction === "up" || direction === "left" ),
+			isVert = ( direction === "up" || direction === "down" ),
+			duration = options.duration || fx.speeds.normal;
+
+
+        // get the element position to restore it then
+        var position = styler.css(elm, 'position');
+
+        if (isHide) {
+            // active the function only if the element is visible
+        	if (styler.isInvisible(elm)) {
+        		return this;
+        	}
+        } else {
+	        // show element if it is hidden
+	        show(elm);        	
+	        // place it so it displays as usually but hidden
+	        styler.css(elm, {
+	            position: 'absolute',
+	            visibility: 'hidden'
+	        });
+        }
+
+
+
+        if (isVert) { // up--down
+	        // get naturally height, margin, padding
+	        var marginTop = styler.css(elm, 'margin-top');
+	        var marginBottom = styler.css(elm, 'margin-bottom');
+	        var paddingTop = styler.css(elm, 'padding-top');
+	        var paddingBottom = styler.css(elm, 'padding-bottom');
+	        var height = styler.css(elm, 'height');
+
+	        if (isHide) {  	// slideup
+	            // set initial css for animation
+	            styler.css(elm, {
+	                visibility: 'visible',
+	                overflow: 'hidden',
+	                height: height,
+	                marginTop: marginTop,
+	                marginBottom: marginBottom,
+	                paddingTop: paddingTop,
+	                paddingBottom: paddingBottom
+	            });
+
+	            // animate element height, margin and padding to zero
+	            animate(elm, {
+	                height: 0,
+	                marginTop: 0,
+	                marginBottom: 0,
+	                paddingTop: 0,
+	                paddingBottom: 0
+	            }, {
+	                // callback : restore the element position, height, margin and padding to original values
+	                duration: duration,
+	                queue: false,
+	                complete: function() {
+	                    hide(elm);
+	                    styler.css(elm, {
+	                        visibility: 'visible',
+	                        overflow: 'hidden',
+	                        height: height,
+	                        marginTop: marginTop,
+	                        marginBottom: marginBottom,
+	                        paddingTop: paddingTop,
+	                        paddingBottom: paddingBottom
+	                    });
+	                    if (callback) {
+	                        callback.apply(elm);
+	                    }
+	                }
+	            });
+	        } else {     	// slidedown
+		        // set initial css for animation
+		        styler.css(elm, {
+		            position: position,
+		            visibility: 'visible',
+		            overflow: 'hidden',
+		            height: 0,
+		            marginTop: 0,
+		            marginBottom: 0,
+		            paddingTop: 0,
+		            paddingBottom: 0
+		        });
+
+		        // animate to gotten height, margin and padding
+		        animate(elm, {
+		            height: height,
+		            marginTop: marginTop,
+		            marginBottom: marginBottom,
+		            paddingTop: paddingTop,
+		            paddingBottom: paddingBottom
+		        }, {
+		            duration: duration,
+		            complete: function() {
+		                if (callback) {
+		                    callback.apply(elm);
+		                }
+		            }
+		        });
+
+	        }
+
+        } else { // left--right
+	        // get naturally height, margin, padding
+	        var marginLeft = styler.css(elm, 'margin-left');
+	        var marginRight = styler.css(elm, 'margin-right');
+	        var paddingLeft = styler.css(elm, 'padding-left');
+	        var paddingRight = styler.css(elm, 'padding-right');
+	        var width = styler.css(elm, 'width');
+
+	        if (isHide) {  	// slideleft
+	            // set initial css for animation
+	            styler.css(elm, {
+	                visibility: 'visible',
+	                overflow: 'hidden',
+	                width: width,
+	                marginLeft: marginLeft,
+	                marginRight: marginRight,
+	                paddingLeft: paddingLeft,
+	                paddingRight: paddingRight
+	            });
+
+	            // animate element height, margin and padding to zero
+	            animate(elm, {
+	                width: 0,
+	                marginLeft: 0,
+	                marginRight: 0,
+	                paddingLeft: 0,
+	                paddingRight: 0
+	            }, {
+	                // callback : restore the element position, height, margin and padding to original values
+	                duration: duration,
+	                queue: false,
+	                complete: function() {
+	                    hide(elm);
+	                    styler.css(elm, {
+	                        visibility: 'visible',
+	                        overflow: 'hidden',
+	                        width: width,
+	                        marginLeft: marginLeft,
+	                        marginRight: marginRight,
+	                        paddingLeft: paddingLeft,
+	                        paddingRight: paddingRight
+	                    });
+	                    if (callback) {
+	                        callback.apply(elm);
+	                    }
+	                }
+	            });
+	        } else {     	// slideright
+		        // set initial css for animation
+		        styler.css(elm, {
+		            position: position,
+		            visibility: 'visible',
+		            overflow: 'hidden',
+		            width: 0,
+		            marginLeft: 0,
+		            marginRight: 0,
+		            paddingLeft: 0,
+		            paddingRight: 0
+		        });
+
+		        // animate to gotten width, margin and padding
+		        animate(elm, {
+		            width: width,
+		            marginLeft: marginLeft,
+		            marginRight: marginRight,
+		            paddingLeft: paddingLeft,
+		            paddingRight: paddingRight
+		        }, {
+		            duration: duration,
+		            complete: function() {
+		                if (callback) {
+		                    callback.apply(elm);
+		                }
+		            }
+		        });
+
+	        }       	
+        }
+
+        return this;
+    }
+
+    return fx.slide = slide;
+
+});
+
+define('skylark-domx-fx/slideDown',[
+    "./fx",
+    "./slide"
+],function(fx,slide) {
     /*   
      * Display an element with a sliding motion.
      * @param {Object} elm  
@@ -17346,66 +17759,18 @@ define('skylark-domx-fx/slideDown',[
      * @param {Function} callback
      */
     function slideDown(elm, duration, callback) {
-
-        // get the element position to restore it then
-        var position = styler.css(elm, 'position');
-
-        // show element if it is hidden
-        show(elm);
-
-        // place it so it displays as usually but hidden
-        styler.css(elm, {
-            position: 'absolute',
-            visibility: 'hidden'
-        });
-
-        // get naturally height, margin, padding
-        var marginTop = styler.css(elm, 'margin-top');
-        var marginBottom = styler.css(elm, 'margin-bottom');
-        var paddingTop = styler.css(elm, 'padding-top');
-        var paddingBottom = styler.css(elm, 'padding-bottom');
-        var height = styler.css(elm, 'height');
-
-        // set initial css for animation
-        styler.css(elm, {
-            position: position,
-            visibility: 'visible',
-            overflow: 'hidden',
-            height: 0,
-            marginTop: 0,
-            marginBottom: 0,
-            paddingTop: 0,
-            paddingBottom: 0
-        });
-
-        // animate to gotten height, margin and padding
-        animate(elm, {
-            height: height,
-            marginTop: marginTop,
-            marginBottom: marginBottom,
-            paddingTop: paddingTop,
-            paddingBottom: paddingBottom
-        }, {
-            duration: duration,
-            complete: function() {
-                if (callback) {
-                    callback.apply(elm);
-                }
-            }
-        });
-
-        return this;
+        return slide(elm,{
+            direction : "down",
+            duration : duration
+        },callback);
     }
 
     return fx.slideDown = slideDown;
 });
 define('skylark-domx-fx/slideUp',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
     "./fx",
-    "./animate",
-    "./hide"
-],function(langx,styler,fx,animate,hide) {
+    "./slide"
+],function(fx,slide) {
     /*   
      * Hide an element with a sliding motion.
      * @param {Object} elm  
@@ -17413,59 +17778,10 @@ define('skylark-domx-fx/slideUp',[
      * @param {Function} callback
      */
     function slideUp(elm, duration, callback) {
-        // active the function only if the element is visible
-        if (geom.height(elm) > 0) {
-
-            // get the element position to restore it then
-            var position = styler.css(elm, 'position');
-
-            // get the element height, margin and padding to restore them then
-            var height = styler.css(elm, 'height');
-            var marginTop = styler.css(elm, 'margin-top');
-            var marginBottom = styler.css(elm, 'margin-bottom');
-            var paddingTop = styler.css(elm, 'padding-top');
-            var paddingBottom = styler.css(elm, 'padding-bottom');
-
-            // set initial css for animation
-            styler.css(elm, {
-                visibility: 'visible',
-                overflow: 'hidden',
-                height: height,
-                marginTop: marginTop,
-                marginBottom: marginBottom,
-                paddingTop: paddingTop,
-                paddingBottom: paddingBottom
-            });
-
-            // animate element height, margin and padding to zero
-            animate(elm, {
-                height: 0,
-                marginTop: 0,
-                marginBottom: 0,
-                paddingTop: 0,
-                paddingBottom: 0
-            }, {
-                // callback : restore the element position, height, margin and padding to original values
-                duration: duration,
-                queue: false,
-                complete: function() {
-                    hide(elm);
-                    styler.css(elm, {
-                        visibility: 'visible',
-                        overflow: 'hidden',
-                        height: height,
-                        marginTop: marginTop,
-                        marginBottom: marginBottom,
-                        paddingTop: paddingTop,
-                        paddingBottom: paddingBottom
-                    });
-                    if (callback) {
-                        callback.apply(elm);
-                    }
-                }
-            });
-        }
-        return this;
+        return slide(elm,{
+            direction : "up",
+            duration : duration
+        },callback);
     }
 
 
@@ -17602,12 +17918,16 @@ define('skylark-domx-fx/main',[
     "./animate",
     "./bounce",
     "./emulateTransitionEnd",
+    "./explode",
     "./fadeIn",
     "./fadeOut",
-    "./fadeTo",
+    "./fade",
     "./fadeToggle",
     "./hide",
+    "./pulsate",
+    "./shake",
     "./show",
+    "./slide",
     "./slideDown",
     "./slideToggle",
     "./slideUp",
@@ -17620,7 +17940,7 @@ define('skylark-domx-fx/main',[
         "emulateTransitionEnd",
         "fadeIn",
         "fadeOut",
-        "fadeTo",
+        "fade",
         "fadeToggle",
         "hide",
         "scrollToTop",
