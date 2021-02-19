@@ -11275,8 +11275,394 @@ function removeSelfClosingTags(xml) {
 
     return skylark.attach("domx.noder" , noder);
 });
-define('skylark-domx-noder/main',[
+define('skylark-domx-styler/styler',[
+    "skylark-langx/skylark",
+    "skylark-langx/langx"
+], function(skylark, langx) {
+    var every = Array.prototype.every,
+        forEach = Array.prototype.forEach,
+        camelCase = langx.camelCase,
+        dasherize = langx.dasherize;
+
+    function maybeAddPx(name, value) {
+        return (typeof value == "number" && !cssNumber[dasherize(name)]) ? value + "px" : value
+    }
+
+    var cssNumber = {
+            'column-count': 1,
+            'columns': 1,
+            'font-weight': 1,
+            'line-height': 1,
+            'opacity': 1,
+            'z-index': 1,
+            'zoom': 1
+        },
+        classReCache = {
+
+        };
+
+    function classRE(name) {
+        return name in classReCache ?
+            classReCache[name] : (classReCache[name] = new RegExp('(^|\\s)' + name + '(\\s|$)'));
+    }
+
+    // access className property while respecting SVGAnimatedString
+    /*
+     * Adds the specified class(es) to each element in the set of matched elements.
+     * @param {HTMLElement} node
+     * @param {String} value
+     */
+    function className(node, value) {
+        var klass = node.className || '',
+            svg = klass && klass.baseVal !== undefined
+
+        if (value === undefined) return svg ? klass.baseVal : klass
+        svg ? (klass.baseVal = value) : (node.className = value)
+    }
+
+    function disabled(elm, value ) {
+        if (arguments.length < 2) {
+            return !!this.dom.disabled;
+        }
+
+        elm.disabled = value;
+
+        return this;
+    }
+
+    var elementDisplay = {};
+
+    function defaultDisplay(nodeName) {
+        var element, display
+        if (!elementDisplay[nodeName]) {
+            element = document.createElement(nodeName)
+            document.body.appendChild(element)
+            display = getStyles(element).getPropertyValue("display")
+            element.parentNode.removeChild(element)
+            display == "none" && (display = "block")
+            elementDisplay[nodeName] = display
+        }
+        return elementDisplay[nodeName]
+    }
+    /*
+     * Display the matched elements.
+     * @param {HTMLElement} elm
+     */
+    function show(elm) {
+        styler.css(elm, "display", "");
+        if (styler.css(elm, "display") == "none") {
+            styler.css(elm, "display", defaultDisplay(elm.nodeName));
+        }
+        return this;
+    }
+
+    function isInvisible(elm) {
+        return styler.css(elm, "display") == "none" || styler.css(elm, "opacity") == 0 || styler.css(elm,"visibility") == "hidden";
+    }
+
+    /*
+     * Hide the matched elements.
+     * @param {HTMLElement} elm
+     */
+    function hide(elm) {
+        styler.css(elm, "display", "none");
+        return this;
+    }
+
+    /*
+     * Adds the specified class(es) to each element in the set of matched elements.
+     * @param {HTMLElement} elm
+     * @param {String} name
+     */
+    function addClass(elm, name) {
+        if (!name) return this
+        var cls = className(elm),
+            names;
+        if (langx.isString(name)) {
+            names = name.split(/\s+/g);
+        } else {
+            names = name;
+        }
+        names.forEach(function(klass) {
+            var re = classRE(klass);
+            if (!cls.match(re)) {
+                cls += (cls ? " " : "") + klass;
+            }
+        });
+
+        className(elm, cls);
+
+        return this;
+    }
+
+    function getStyles( elem ) {
+
+        // Support: IE <=11 only, Firefox <=30 (#15098, #14150)
+        // IE throws on elements created in popups
+        // FF meanwhile throws on frame elements through "defaultView.getComputedStyle"
+        var view = elem.ownerDocument.defaultView;
+
+        if ( !view || !view.opener ) {
+            view = window;
+        }
+
+        return view.getComputedStyle( elem);
+    }
+
+
+    /*
+     * Get the value of a computed style property for the first element in the set of matched elements or set one or more CSS properties for every matched element.
+     * @param {HTMLElement} elm
+     * @param {String} property
+     * @param {Any} value
+     */
+    function css(elm, property, value) {
+        //if (arguments.length < 3) {
+        if (value == void 0) {
+            var computedStyle,
+                computedStyle = getStyles(elm)
+            if (property == void 0) {
+                return computedStyle;
+            } else if (langx.isString(property)) {
+                return elm.style[camelCase(property)] || computedStyle.getPropertyValue(dasherize(property))
+            } else if (langx.isArrayLike(property)) {
+                var props = {}
+                forEach.call(property, function(prop) {
+                    props[prop] = (elm.style[camelCase(prop)] || computedStyle.getPropertyValue(dasherize(prop)))
+                })
+                return props
+            }
+        }
+
+        var css = '';
+        if (typeof(property) == 'string') {
+            if (!value && value !== 0) {
+                elm.style.removeProperty(dasherize(property));
+            } else {
+                css = dasherize(property) + ":" + maybeAddPx(property, value)
+            }
+        } else {
+            for (key in property) {
+                if (property[key] === undefined) {
+                    continue;
+                }
+                if (!property[key] && property[key] !== 0) {
+                    elm.style.removeProperty(dasherize(key));
+                } else {
+                    css += dasherize(key) + ':' + maybeAddPx(key, property[key]) + ';'
+                }
+            }
+        }
+
+        elm.style.cssText += ';' + css;
+        return this;
+    }
+
+    /*
+     * Determine whether any of the matched elements are assigned the given class.
+     * @param {HTMLElement} elm
+     * @param {String} name
+     */
+    function hasClass(elm, name) {
+        var re = classRE(name);
+        return elm.className && elm.className.match(re);
+    }
+
+    /*
+     * Remove a single class, multiple classes, or all classes from each element in the set of matched elements.
+     * @param {HTMLElement} elm
+     * @param {String} name
+     */
+    function removeClass(elm, name) {
+        if (name) {
+            var cls = className(elm),
+                names;
+
+            if (langx.isString(name)) {
+                names = name.split(/\s+/g);
+            } else {
+                names = name;
+            }
+
+            names.forEach(function(klass) {
+                var re = classRE(klass);
+                if (cls.match(re)) {
+                    cls = cls.replace(re, " ");
+                }
+            });
+
+            className(elm, cls.trim());
+        } else {
+            className(elm, "");
+        }
+
+        return this;
+    }
+
+    /*
+     * Add or remove one or more classes from the specified element.
+     * @param {HTMLElement} elm
+     * @param {String} name
+     * @param {} when
+     */
+    function toggleClass(elm, name, when) {
+        var self = this;
+        name.split(/\s+/g).forEach(function(klass) {
+            if (when === undefined) {
+                when = !hasClass(elm, klass);
+            }
+            if (when) {
+                addClass(elm, klass);
+            } else {
+                removeClass(elm, klass)
+            }
+        });
+
+        return self;
+    }
+
+    var styler = function() {
+        return styler;
+    };
+
+    langx.mixin(styler, {
+        autocssfix: false,
+        cssHooks: {
+
+        },
+
+        addClass: addClass,
+        className: className,
+        css: css,
+        disabled : disabled,        
+        hasClass: hasClass,
+        hide: hide,
+        isInvisible: isInvisible,
+        removeClass: removeClass,
+        show: show,
+        toggleClass: toggleClass
+    });
+
+    return skylark.attach("domx.styler", styler);
+});
+define('skylark-domx-styler/main',[
+	"./styler"
+],function(styler,velm,$){
+	
+	return styler;
+});
+define('skylark-domx-styler', ['skylark-domx-styler/main'], function (main) { return main; });
+
+define('skylark-domx-noder/overlay',[
+	"skylark-domx-styler",
 	"./noder"
+],function(styler,noder){
+    /*   
+     *
+     * @param {Node} elm
+     * @param {Node} params
+     */
+    function overlay(elm, params) {
+        var overlayDiv = noder.createElement("div", params);
+        styler.css(overlayDiv, {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: 0x7FFFFFFF,
+            opacity: 0.7
+        });
+        elm.appendChild(overlayDiv);
+        return overlayDiv;
+
+    }
+
+    return noder.overlay = overlay;
+ });
+define('skylark-domx-noder/throb',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./noder"
+],function(langx,styler,noder) {
+
+    
+    /*   
+     * Replace an old node with the specified node.
+     * @param {HTMLElement} elm
+     * @param {Node} params
+     */
+    function throb(elm, params) {
+        params = params || {};
+
+        var self = this,
+            text = params.text,
+            style = params.style,
+            time = params.time,
+            callback = params.callback,
+            timer,
+
+            throbber = noder.createElement("div", {
+                "class": params.className || "throbber"
+            }),
+            //_overlay = overlay(throbber, {
+            //    "class": 'overlay fade'
+            //}),
+            remove = function() {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+                if (throbber) {
+                    noder.remove(throbber);
+                    throbber = null;
+                }
+            },
+            update = function(params) {
+                if (params && params.text && throbber) {
+                    textNode.nodeValue = params.text;
+                }
+            };
+
+        if (params.style) {
+            styler.css(throbber,params.style);
+        }
+
+        //throb = noder.createElement("div", {
+        //   "class": params.throb && params.throb.className || "throb"
+        //}),
+        //textNode = noder.createTextNode(text || ""),
+ 
+        var content = params.content ||  '<span class="throb"></span>';
+
+        //throb.appendChild(textNode);
+        //throbber.appendChild(throb);
+
+        noder.html(throbber,content);
+        
+        elm.appendChild(throbber);
+
+        var end = function() {
+            remove();
+            if (callback) callback();
+        };
+        if (time) {
+            timer = setTimeout(end, time);
+        }
+
+        return {
+            throbber : throbber,
+            remove: remove,
+            update: update
+        };
+    }
+
+    return noder.throb = throb;
+});
+define('skylark-domx-noder/main',[
+	"./noder",
+	"./overlay",
+	"./throb"
 ],function(noder){
 	return noder;
 });
@@ -11639,284 +12025,6 @@ define('skylark-domx/css',[
 
      return css;
 });
-
-define('skylark-domx-styler/styler',[
-    "skylark-langx/skylark",
-    "skylark-langx/langx"
-], function(skylark, langx) {
-    var every = Array.prototype.every,
-        forEach = Array.prototype.forEach,
-        camelCase = langx.camelCase,
-        dasherize = langx.dasherize;
-
-    function maybeAddPx(name, value) {
-        return (typeof value == "number" && !cssNumber[dasherize(name)]) ? value + "px" : value
-    }
-
-    var cssNumber = {
-            'column-count': 1,
-            'columns': 1,
-            'font-weight': 1,
-            'line-height': 1,
-            'opacity': 1,
-            'z-index': 1,
-            'zoom': 1
-        },
-        classReCache = {
-
-        };
-
-    function classRE(name) {
-        return name in classReCache ?
-            classReCache[name] : (classReCache[name] = new RegExp('(^|\\s)' + name + '(\\s|$)'));
-    }
-
-    // access className property while respecting SVGAnimatedString
-    /*
-     * Adds the specified class(es) to each element in the set of matched elements.
-     * @param {HTMLElement} node
-     * @param {String} value
-     */
-    function className(node, value) {
-        var klass = node.className || '',
-            svg = klass && klass.baseVal !== undefined
-
-        if (value === undefined) return svg ? klass.baseVal : klass
-        svg ? (klass.baseVal = value) : (node.className = value)
-    }
-
-    function disabled(elm, value ) {
-        if (arguments.length < 2) {
-            return !!this.dom.disabled;
-        }
-
-        elm.disabled = value;
-
-        return this;
-    }
-
-    var elementDisplay = {};
-
-    function defaultDisplay(nodeName) {
-        var element, display
-        if (!elementDisplay[nodeName]) {
-            element = document.createElement(nodeName)
-            document.body.appendChild(element)
-            display = getStyles(element).getPropertyValue("display")
-            element.parentNode.removeChild(element)
-            display == "none" && (display = "block")
-            elementDisplay[nodeName] = display
-        }
-        return elementDisplay[nodeName]
-    }
-    /*
-     * Display the matched elements.
-     * @param {HTMLElement} elm
-     */
-    function show(elm) {
-        styler.css(elm, "display", "");
-        if (styler.css(elm, "display") == "none") {
-            styler.css(elm, "display", defaultDisplay(elm.nodeName));
-        }
-        return this;
-    }
-
-    function isInvisible(elm) {
-        return styler.css(elm, "display") == "none" || styler.css(elm, "opacity") == 0 || styler.css(elm,"visibility") == "hidden";
-    }
-
-    /*
-     * Hide the matched elements.
-     * @param {HTMLElement} elm
-     */
-    function hide(elm) {
-        styler.css(elm, "display", "none");
-        return this;
-    }
-
-    /*
-     * Adds the specified class(es) to each element in the set of matched elements.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     */
-    function addClass(elm, name) {
-        if (!name) return this
-        var cls = className(elm),
-            names;
-        if (langx.isString(name)) {
-            names = name.split(/\s+/g);
-        } else {
-            names = name;
-        }
-        names.forEach(function(klass) {
-            var re = classRE(klass);
-            if (!cls.match(re)) {
-                cls += (cls ? " " : "") + klass;
-            }
-        });
-
-        className(elm, cls);
-
-        return this;
-    }
-
-    function getStyles( elem ) {
-
-        // Support: IE <=11 only, Firefox <=30 (#15098, #14150)
-        // IE throws on elements created in popups
-        // FF meanwhile throws on frame elements through "defaultView.getComputedStyle"
-        var view = elem.ownerDocument.defaultView;
-
-        if ( !view || !view.opener ) {
-            view = window;
-        }
-
-        return view.getComputedStyle( elem);
-    }
-
-
-    /*
-     * Get the value of a computed style property for the first element in the set of matched elements or set one or more CSS properties for every matched element.
-     * @param {HTMLElement} elm
-     * @param {String} property
-     * @param {Any} value
-     */
-    function css(elm, property, value) {
-        //if (arguments.length < 3) {
-        if (value == void 0) {
-            var computedStyle,
-                computedStyle = getStyles(elm)
-            if (property == void 0) {
-                return computedStyle;
-            } else if (langx.isString(property)) {
-                return elm.style[camelCase(property)] || computedStyle.getPropertyValue(dasherize(property))
-            } else if (langx.isArrayLike(property)) {
-                var props = {}
-                forEach.call(property, function(prop) {
-                    props[prop] = (elm.style[camelCase(prop)] || computedStyle.getPropertyValue(dasherize(prop)))
-                })
-                return props
-            }
-        }
-
-        var css = '';
-        if (typeof(property) == 'string') {
-            if (!value && value !== 0) {
-                elm.style.removeProperty(dasherize(property));
-            } else {
-                css = dasherize(property) + ":" + maybeAddPx(property, value)
-            }
-        } else {
-            for (key in property) {
-                if (property[key] === undefined) {
-                    continue;
-                }
-                if (!property[key] && property[key] !== 0) {
-                    elm.style.removeProperty(dasherize(key));
-                } else {
-                    css += dasherize(key) + ':' + maybeAddPx(key, property[key]) + ';'
-                }
-            }
-        }
-
-        elm.style.cssText += ';' + css;
-        return this;
-    }
-
-    /*
-     * Determine whether any of the matched elements are assigned the given class.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     */
-    function hasClass(elm, name) {
-        var re = classRE(name);
-        return elm.className && elm.className.match(re);
-    }
-
-    /*
-     * Remove a single class, multiple classes, or all classes from each element in the set of matched elements.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     */
-    function removeClass(elm, name) {
-        if (name) {
-            var cls = className(elm),
-                names;
-
-            if (langx.isString(name)) {
-                names = name.split(/\s+/g);
-            } else {
-                names = name;
-            }
-
-            names.forEach(function(klass) {
-                var re = classRE(klass);
-                if (cls.match(re)) {
-                    cls = cls.replace(re, " ");
-                }
-            });
-
-            className(elm, cls.trim());
-        } else {
-            className(elm, "");
-        }
-
-        return this;
-    }
-
-    /*
-     * Add or remove one or more classes from the specified element.
-     * @param {HTMLElement} elm
-     * @param {String} name
-     * @param {} when
-     */
-    function toggleClass(elm, name, when) {
-        var self = this;
-        name.split(/\s+/g).forEach(function(klass) {
-            if (when === undefined) {
-                when = !hasClass(elm, klass);
-            }
-            if (when) {
-                addClass(elm, klass);
-            } else {
-                removeClass(elm, klass)
-            }
-        });
-
-        return self;
-    }
-
-    var styler = function() {
-        return styler;
-    };
-
-    langx.mixin(styler, {
-        autocssfix: false,
-        cssHooks: {
-
-        },
-
-        addClass: addClass,
-        className: className,
-        css: css,
-        disabled : disabled,        
-        hasClass: hasClass,
-        hide: hide,
-        isInvisible: isInvisible,
-        removeClass: removeClass,
-        show: show,
-        toggleClass: toggleClass
-    });
-
-    return skylark.attach("domx.styler", styler);
-});
-define('skylark-domx-styler/main',[
-	"./styler"
-],function(styler,velm,$){
-	
-	return styler;
-});
-define('skylark-domx-styler', ['skylark-domx-styler/main'], function (main) { return main; });
 
 define('skylark-domx-finder/finder',[
     "skylark-langx/skylark",
@@ -16720,6 +16828,8 @@ define('skylark-domx-geom/main',[
         "contentRect",
         "height",
         "marginExtents",
+        "marginRect",
+        "marginSize",
         "offsetParent",
         "paddingExtents",
         "pagePosition",
@@ -17319,6 +17429,12 @@ define('skylark-domx-fx/fade',[
      * @param {Function} callback
      */
     function fade(elm, opacity,options, callback) {
+        if (langx.isFunction(options)) {
+            callback = options;
+            options = {};
+        }
+        options = options || {};
+        
         animate(elm, { opacity: opacity }, options.duration, options.easing, callback);
         return this;
     }
@@ -17339,7 +17455,7 @@ define('skylark-domx-fx/fadeIn',[
      * @param {String} easing
      * @param {Function} callback
      */
-    function fadeIn(elm, duration, easing, callback) {
+    function fadeIn(elm, options, callback) {
         var target = styler.css(elm, "opacity");
         if (target > 0) {
             styler.css(elm, "opacity", 0);
@@ -17348,7 +17464,7 @@ define('skylark-domx-fx/fadeIn',[
         }
         styler.show(elm);
 
-        fadeTo(elm,  target,{ duration, easing}, callback);
+        fadeTo(elm,  target,options, callback);
 
         return this;
     }
@@ -17369,7 +17485,7 @@ define('skylark-domx-fx/fadeOut',[
      * @param {String} easing
      * @param {Function} callback
      */
-    function fadeOut(elm, duration, easing, callback) {
+    function fadeOut(elm, options, callback) {
 
         function complete() {
             styler.css(elm,"opacity",opacity);
@@ -17379,7 +17495,7 @@ define('skylark-domx-fx/fadeOut',[
             }
         }
 
-        fadeTo(elm, 0,{duration,easing},callback);
+        fadeTo(elm, 0,options,callback);
 
         return this;
     }
@@ -17548,16 +17664,15 @@ define('skylark-domx-fx/slide',[
     "skylark-langx/langx",
     "skylark-domx-styler",
     "./fx",
-    "./animate",
-    "./show",
-    "./hide"
-],function(langx,styler,fx,animate,show,hide) {
+    "./animate"
+],function(langx,styler,fx,animate) {
 
     function slide(elm,options,callback ) {
     	if (langx.isFunction(options)) {
     		callback = options;
     		options = {};
     	}
+    	options = options || {};
 		var direction = options.direction || "down",
 			isHide = ( direction === "up" || direction === "left" ),
 			isVert = ( direction === "up" || direction === "down" ),
@@ -17574,7 +17689,7 @@ define('skylark-domx-fx/slide',[
         	}
         } else {
 	        // show element if it is hidden
-	        show(elm);        	
+	        styler.show(elm);        	
 	        // place it so it displays as usually but hidden
 	        styler.css(elm, {
 	            position: 'absolute',
@@ -17616,7 +17731,7 @@ define('skylark-domx-fx/slide',[
 	                duration: duration,
 	                queue: false,
 	                complete: function() {
-	                    hide(elm);
+	                    styler.hide(elm);
 	                    styler.css(elm, {
 	                        visibility: 'visible',
 	                        overflow: 'hidden',
@@ -17694,7 +17809,7 @@ define('skylark-domx-fx/slide',[
 	                duration: duration,
 	                queue: false,
 	                complete: function() {
-	                    hide(elm);
+	                    styler.hide(elm);
 	                    styler.css(elm, {
 	                        visibility: 'visible',
 	                        overflow: 'hidden',
