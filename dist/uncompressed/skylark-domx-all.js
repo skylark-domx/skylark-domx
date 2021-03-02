@@ -1270,12 +1270,33 @@ define('skylark-langx/arrays',[
 ],function(arrays){
   return arrays;
 });
-define('skylark-langx-klass/klass',[
+define('skylark-langx-constructs/constructs',[
+  "skylark-langx-ns"
+],function(skylark){
+
+    return skylark.attach("langx.constructs",{});
+});
+define('skylark-langx-constructs/inherit',[
+	"./constructs"
+],function(constructs){
+
+    function inherit(ctor, base) {
+        var f = function() {};
+        f.prototype = base.prototype;
+
+        ctor.prototype = new f();
+    }
+
+    return constructs.inherit = inherit
+});
+define('skylark-langx-constructs/klass',[
   "skylark-langx-ns",
   "skylark-langx-types",
   "skylark-langx-objects",
   "skylark-langx-arrays",
-],function(skylark,types,objects,arrays){
+  "./constructs",
+  "./inherit"
+],function(skylark,types,objects,arrays,constructs,inherit){
     var uniq = arrays.uniq,
         has = objects.has,
         mixin = objects.mixin,
@@ -1328,12 +1349,7 @@ let longEar = klass({
 },rabbit);
 */
     
-    function inherit(ctor, base) {
-        var f = function() {};
-        f.prototype = base.prototype;
 
-        ctor.prototype = new f();
-    }
 
     var f1 = function() {
         function extendClass(ctor, props, options) {
@@ -1519,7 +1535,15 @@ let longEar = klass({
 
     var createClass = f1();
 
-    return skylark.attach("langx.klass",createClass);
+    return constructs.klass = createClass;
+});
+define('skylark-langx-klass/klass',[
+  "skylark-langx-ns",
+  "skylark-langx-constructs/klass"
+],function(skylark,klass){
+
+
+    return skylark.attach("langx.klass",klass);
 });
 define('skylark-langx-klass/main',[
 	"./klass"
@@ -2842,6 +2866,20 @@ define('skylark-langx/binary',[
 ],function(binary){
   return binary;
 });
+define('skylark-langx-constructs/main',[
+	"./constructs",
+	"./inherit",
+	"./klass"
+],function(constructs){
+	return constructs;
+});
+define('skylark-langx-constructs', ['skylark-langx-constructs/main'], function (main) { return main; });
+
+define('skylark-langx/constructs',[
+	"skylark-langx-constructs"
+],function(constructs){
+  return constructs;
+});
 define('skylark-langx-datetimes/datetimes',[
     "skylark-langx-ns"
 ],function(skylark){
@@ -3641,6 +3679,86 @@ define('skylark-langx/funcs',[
     "skylark-langx-funcs"
 ],function(funcs){
     return funcs;
+});
+define('skylark-langx-globals/globals',[
+	"skylark-langx-ns"
+],function(ns) {
+	var globals = (function(){
+		if (typeof global !== 'undefined' && typeof global !== 'function') {
+			// global spec defines a reference to the global object called 'global'
+			// https://github.com/tc39/proposal-global
+			// `global` is also defined in NodeJS
+			return global;
+		} else if (typeof window !== 'undefined') {
+			// window is defined in browsers
+			return window;
+		}
+		else if (typeof self !== 'undefined') {
+			// self is defined in WebWorkers
+			return self;
+		}
+		return this;
+	})();
+
+	return ns.attach("langx.globals",globals);
+
+});
+define('skylark-langx-globals/console',[
+	"./globals"
+], function(globals) {
+	return globals.console = console;
+});
+define('skylark-langx-globals/document',[
+	"./globals"
+], function(globals) {
+	var topLevel = typeof global !== 'undefined' ? global :
+	    typeof window !== 'undefined' ? window : {};
+
+	var doccy;
+
+	if (typeof document !== 'undefined') {
+	    doccy = document;
+	} else {
+        doccy  = require('min-document');
+	}
+
+
+	return globals.document = doccy;
+});
+
+
+
+
+define('skylark-langx-globals/window',[
+	"./globals"
+], function(globals) {
+
+	var win = (function() {
+		if (typeof window !== "undefined") {
+		    return window;
+		} else {
+		    return {};
+		}
+	})();
+
+	return globals.window = win;
+});
+
+define('skylark-langx-globals/main',[
+	"./globals",
+	"./console",
+	"./document",
+	"./window"
+],function(globals){
+
+	return globals;
+});
+define('skylark-langx-globals', ['skylark-langx-globals/main'], function (main) { return main; });
+
+define('skylark-langx/globals',[
+    "skylark-langx-globals"
+],function(globals){
+    return globals;
 });
 define('skylark-langx/hoster',[
 	"skylark-langx-hoster"
@@ -10276,12 +10394,14 @@ define('skylark-langx/langx',[
     "./aspect",
     "./async",
     "./binary",
+    "./constructs",
     "./datetimes",
     "./Deferred",
     "./Emitter",
     "./Evented",
     "./events",
     "./funcs",
+    "./globals",
     "./hoster",
     "./klass",
     "./maths",
@@ -10298,12 +10418,14 @@ define('skylark-langx/langx',[
     aspect,
     async,
     binary,
+    constructs,
     datetimes,
     Deferred,
     Emitter,
     Evented,
     events,
     funcs,
+    globals,
     hoster,
     klass,
     maths,
