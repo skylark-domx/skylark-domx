@@ -1280,11 +1280,28 @@ define('skylark-langx-constructs/inherit',[
 	"./constructs"
 ],function(constructs){
 
-    function inherit(ctor, base) {
-        var f = function() {};
-        f.prototype = base.prototype;
+    function inherit(ctor,base) {
+        ///var f = function() {};
+        ///f.prototype = base.prototype;
+        ///
+        ///ctor.prototype = new f();
 
-        ctor.prototype = new f();
+	    if ((typeof base !== "function") && base) {
+	      throw new TypeError("Super expression must either be null or a function");
+	    }
+
+	    ctor.prototype = Object.create(base && base.prototype, {
+	      constructor: {
+	        value: ctor,
+	        writable: true,
+	        configurable: true
+	      }
+	    });
+
+	    if (base) {
+	    	//tor.__proto__ = base;
+	    	Object.setPrototypeOf(ctor, base);
+	    } 
     }
 
     return constructs.inherit = inherit
@@ -1442,8 +1459,10 @@ let longEar = klass({
             var newCtor =ctor;
             for (var i=0;i<mixins.length;i++) {
                 var xtor = new Function();
-                xtor.prototype = Object.create(newCtor.prototype);
-                xtor.__proto__ = newCtor;
+
+                inherit(xtor,newCtor)
+                //xtor.prototype = Object.create(newCtor.prototype);
+                //xtor.__proto__ = newCtor;
                 xtor.superclass = null;
                 mixin(xtor.prototype,mixins[i].prototype);
                 xtor.prototype.__mixin__ = mixins[i];
@@ -1498,15 +1517,17 @@ let longEar = klass({
 
 
             // Populate our constructed prototype object
-            ctor.prototype = Object.create(innerParent.prototype);
+            ///ctor.prototype = Object.create(innerParent.prototype);
 
             // Enforce the constructor to be what we expect
-            ctor.prototype.constructor = ctor;
-            ctor.superclass = parent;
-
+            ///ctor.prototype.constructor = ctor;
+  
             // And make this class extendable
-            ctor.__proto__ = innerParent;
+            ///ctor.__proto__ = innerParent;
 
+            inherit(ctor,innerParent);
+
+            ctor.superclass = parent;
 
             if (!ctor._constructor) {
                 ctor._constructor = _constructor;
@@ -2394,6 +2415,24 @@ define('skylark-langx-funcs/template',[
     return funcs.template = template;
 
 });
+define('skylark-langx-funcs/throttle',[
+  "./funcs"
+],function(funcs){
+
+    const throttle = function (fn, wait) {
+        let last = window.performance.now();
+        const throttled = function (...args) {
+            const now = window.performance.now();
+            if (now - last >= wait) {
+                fn(...args);
+                last = now;
+            }
+        };
+        return throttled;
+    };
+
+    return funcs.throttle = throttle;
+});
 define('skylark-langx-funcs/main',[
 	"./funcs",
 	"./debounce",
@@ -2402,7 +2441,8 @@ define('skylark-langx-funcs/main',[
 	"./loop",
 	"./negate",
 	"./proxy",
-	"./template"
+	"./template",
+	"./throttle"
 ],function(funcs){
 	return funcs;
 });
@@ -10528,7 +10568,33 @@ define('skylark-domx-browser/browser',[
     "use strict";
 
     var browser = langx.hoster.browser;
- 
+
+
+    langx.mixin(browser, {
+
+        isIE : !!/msie/i.exec( window.navigator.userAgent ),
+
+        location: function() {
+            return window.location;
+        },
+
+        support : {
+
+        }
+
+    });
+
+
+
+    return skylark.attach("domx.browser",browser);
+});
+
+define('skylark-domx-browser/support/css3',[
+    "skylark-langx/langx",
+    "../browser"
+], function(langx,browser) {
+    "use strict";
+
     var checkedCssProperties = {
             "transitionproperty": "TransitionProperty",
         },
@@ -10559,16 +10625,6 @@ define('skylark-domx-browser/browser',[
                           testEl.mozMatchesSelector ||
                           testEl.oMatchesSelector ||
                           testEl.matchesSelector,
-
-        requestFullScreen = testEl.requestFullscreen || 
-                            testEl.webkitRequestFullscreen || 
-                            testEl.mozRequestFullScreen || 
-                            testEl.msRequestFullscreen,
-
-        exitFullScreen =  document.exitFullscreen ||
-                          document.webkitCancelFullScreen ||
-                          document.mozCancelFullScreen ||
-                          document.msExitFullscreen,
 
         testStyle = testEl.style;
 
@@ -10612,10 +10668,8 @@ define('skylark-domx-browser/browser',[
         return cssStyles[name] || name;
     }
 
-    langx.mixin(browser, {
-        css3PropPrefix: css3PropPrefix,
 
-        isIE : !!/msie/i.exec( window.navigator.userAgent ),
+    var css3 = {
 
         normalizeStyleProperty: normalizeStyleProperty,
 
@@ -10623,41 +10677,106 @@ define('skylark-domx-browser/browser',[
 
         normalizeCssEvent: normalizeCssEvent,
 
-        matchesSelector: matchesSelector,
+        matchesSelector: matchesSelector        
+    };
 
-        requestFullScreen : requestFullScreen,
+    langx.mixin(browser,css3);
 
-        exitFullscreen : requestFullScreen,
-
-        location: function() {
-            return window.location;
-        },
-
-        support : {
-
-        }
-
-    });
+    browser.css3PropPrefix = css3.propPrefix =  css3PropPrefix;
 
     if  (transEndEventName) {
-        browser.support.transition = {
+        browser.support.transition = css3.transition = {
             end : transEndEventName
         };
     }
 
-    browser.support.cssPointerEvents =  (function() {
+    browser.support.cssPointerEvents = css3.pointerEvents =  (function() {
         testEl.style.cssText = 'pointer-events:auto';
         return testEl.style.pointerEvents === 'auto';
     })(),
 
 
+
+
     testEl = null;
 
-    return skylark.attach("domx.browser",browser);
+    return browser.support.css3 = css3;
 });
 
+define('skylark-domx-browser/support/fullscreen',[
+	"../browser"
+],function(browser){
+
+    const FullscreenApi = { 
+    	prefixed: true 
+    };
+
+    const apiMap = [
+        [
+            'requestFullscreen',
+            'exitFullscreen',
+            'fullscreenElement',
+            'fullscreenEnabled',
+            'fullscreenchange',
+            'fullscreenerror',
+            'fullscreen'
+        ],
+        [
+            'webkitRequestFullscreen',
+            'webkitExitFullscreen',
+            'webkitFullscreenElement',
+            'webkitFullscreenEnabled',
+            'webkitfullscreenchange',
+            'webkitfullscreenerror',
+            '-webkit-full-screen'
+        ],
+        [
+            'mozRequestFullScreen',
+            'mozCancelFullScreen',
+            'mozFullScreenElement',
+            'mozFullScreenEnabled',
+            'mozfullscreenchange',
+            'mozfullscreenerror',
+            '-moz-full-screen'
+        ],
+        [
+            'msRequestFullscreen',
+            'msExitFullscreen',
+            'msFullscreenElement',
+            'msFullscreenEnabled',
+            'MSFullscreenChange',
+            'MSFullscreenError',
+            '-ms-fullscreen'
+        ]
+    ];
+    const specApi = apiMap[0];
+    let browserApi;
+    for (let i = 0; i < apiMap.length; i++) {
+        if (apiMap[i][1] in document) {
+            browserApi = apiMap[i];
+            break;
+        }
+    }
+    if (browserApi) {
+        for (let i = 0; i < browserApi.length; i++) {
+            FullscreenApi[specApi[i]] = browserApi[i];
+        }
+        FullscreenApi.prefixed = browserApi[0] !== specApi[0];
+
+        browser.requestFullscreen = document.body[FullscreenApi["requestFullscreen"]];
+        browser.exitFullscreen = document[FullscreenApi["exitFullscreen"]];
+
+        browser.support.fullscreen = FullscreenApi;
+    } else {
+	    browser.support.fullscreen = null;
+    }
+
+    return browser.support.fullscreen;
+});
 define('skylark-domx-browser/main',[
-	"./browser"
+	"./browser",
+	"./support/css3",
+	"./support/fullscreen"
 ],function(browser){
 	return browser;
 });
@@ -10696,10 +10815,32 @@ define('skylark-domx-noder/noder',[
         map = Array.prototype.map,
         slice = Array.prototype.slice;
 
-    function ensureNodes(nodes, copyByClone) {
-        if (!langx.isArrayLike(nodes)) {
-            nodes = [nodes];
+
+
+    function normalizeContent(content) {
+        if (typeof content === 'function') {
+            content = content();
         }
+        return map.call(langx.isArrayLike(content) ? content : [content],value => {
+            if (typeof value === 'function') {
+                value = value();
+            }
+            if (isElement(value) || isTextNode(value)) {
+                return value;
+            }
+            if (typeof value === 'string' && /\S/.test(value)) {
+                return document.createTextNode(value);
+            }
+        }).filter(value => value);
+    }
+
+    function ensureNodes(content, copyByClone) {
+        var nodes = normalizeContent(content);
+
+
+        //if (!langx.isArrayLike(nodes)) {
+        //    nodes = [nodes];
+        //}
         if (copyByClone) {
             nodes = map.call(nodes, function(node) {
                 return node.cloneNode(true);
@@ -10821,10 +10962,10 @@ define('skylark-domx-noder/noder',[
     /*   
      * Create a element and set attributes on it.
      * @param {HTMLElement} tag
-     * @param {props} props
+     * @param {attrs} attrs
      * @param } parent
      */
-    function createElement(tag, props, parent) {
+    function createElement(tag, props,attrs, parent) {
         var node;
 
         if (/svg/i.test(tag)) {
@@ -10833,9 +10974,24 @@ define('skylark-domx-noder/noder',[
             node = document.createElement(tag);
         }
 
+        if (langx.isHtmlNode(props)) {
+            parent = props;
+            props = null;
+            attrs = null;
+        } else if (langx.isHtmlNode(attrs)){
+            parent = attrs;
+            attrs = null;
+        }
+
         if (props) {
             for (var name in props) {
-                node.setAttribute(name, props[name]);
+                node[name] = props[name];
+            }
+        }
+
+        if (attrs) {
+            for (var name in attrs) {
+                node.setAttribute(name, attrs[name]);
             }
         }
         if (parent) {
@@ -10946,11 +11102,11 @@ function removeSelfClosingTags(xml) {
 
     var fulledEl = null;
 
-    function fullScreen(el) {
+    function fullscreen(el) {
         if (el === false) {
-            browser.exitFullScreen.apply(document);
+            return browser.exitFullscreen.apply(document);
         } else if (el) {
-            browser.requestFullScreen.apply(el);
+            return browser.requestFullscreen.apply(el);
             fulledEl = el;
         } else {
             return (
@@ -10960,6 +11116,10 @@ function removeSelfClosingTags(xml) {
                 document.msFullscreenElement
             )
         }
+    }
+
+    function isFullscreen(el) {
+        return fullscreen() === el;
     }
 
 
@@ -11106,6 +11266,24 @@ function removeSelfClosingTags(xml) {
 
     function isActive (elem) {
             return elem === document.activeElement && (elem.type || elem.href);
+    }
+
+
+    function isTextNode(node) {
+        return node && node.nodeType === 3;
+    }
+
+
+    function isElement(node) {
+        return node && node.nodeType === 1;
+    }
+
+    function isInFrame() {
+        try {
+            return window.parent !== window.self;
+        } catch (x) {
+            return true;
+        }
     }
 
     /*   
@@ -11363,7 +11541,7 @@ function removeSelfClosingTags(xml) {
 
         generateId,
 
-        fullScreen: fullScreen,
+        fullscreen: fullscreen,
 
         focusable: focusable,
 
@@ -11373,16 +11551,23 @@ function removeSelfClosingTags(xml) {
 
         isActive,
 
-        isChildOf: isChildOf,
+        isChildOf,
 
-        isDocument: isDocument,
+        isDocument,
 
         isEditable,
         
-        isInDocument: isInDocument,
+        isElement,
+
+        isFullscreen,
+
+        isInDocument,
+
+        isInFrame,
 
         isInput,
 
+        isTextNode,
 
         isWindow: langx.isWindow,
 
@@ -15056,11 +15241,18 @@ define('skylark-domx-eventer/eventer',[
     }
 
     function parse(event) {
-        var segs = ("" + event).split(".");
-        return {
-            type: segs[0],
-            ns: segs.slice(1).sort().join(" ")
-        };
+        if (event) {
+            var segs = ("" + event).split(".");
+            return {
+                type: segs[0],
+                ns: segs.slice(1).sort().join(" ")
+            };
+        } else {
+            return {
+                type : null,
+                ns : null
+            }
+        }
     }
 
     function isHandler(callback) {
@@ -15113,6 +15305,31 @@ define('skylark-domx-eventer/eventer',[
             "selectionchange": 3, // Event
             "submit": 3, // Event
             "reset": 3, // Event
+            'fullscreenchange':3,
+            'fullscreenerror':3,
+
+/*
+            'disablepictureinpicturechanged':3,
+            'ended':3,
+            'enterpictureinpicture':3,
+            'durationchange':3,
+            'leavepictureinpicture':3,
+            'loadstart' : 3,
+            'loadedmetadata':3,
+            'pause' : 3,
+            'play':3,
+            'posterchange':3,
+            'ratechange':3,
+            'seeking' : 3,
+            'sourceset':3,
+            'suspend':3,
+            'textdata':3,
+            'texttrackchange':3,
+            'timeupdate':3,
+            'volumechange':3,
+            'waiting' : 3,
+*/
+
 
             "focus": 4, // FocusEvent
             "blur": 4, // FocusEvent
@@ -15137,8 +15354,11 @@ define('skylark-domx-eventer/eventer',[
             "mouseleave": 7, // MouseEvent
 
 
+            "progress" : 11, //ProgressEvent
+
             "textInput": 12, // TextEvent
 
+            "tap": 13,
             "touchstart": 13, // TouchEvent
             "touchmove": 13, // TouchEvent
             "touchend": 13, // TouchEvent
@@ -15149,7 +15369,10 @@ define('skylark-domx-eventer/eventer',[
             "scroll": 14, // UIEvent
             "unload": 14, // UIEvent,
 
-            "wheel": 15 // WheelEvent
+            "wheel": 15, // WheelEvent
+
+
+
         };
 
     //create a custom dom event
@@ -15297,7 +15520,11 @@ define('skylark-domx-eventer/eventer',[
                             if (fn.handleEvent) {
                                 result = fn.handleEvent.apply(fn,args);
                             } else {
-                                result = fn.apply(match, args);
+                                if (options.ctx) {
+                                    result = fn.apply(options.ctx, args);                                   
+                                } else {
+                                    result = fn.apply(match, args);                                   
+                                }
                             }
 
                             if (result === false) {
@@ -15418,6 +15645,19 @@ define('skylark-domx-eventer/eventer',[
             return handler;
         };
 
+
+    /*   
+     * Remove all event handlers from the specified element.
+     * @param {HTMLElement} elm  
+     */
+    function clear(elm) {
+        var handler = findHandler(elm);
+
+        handler.unregister();
+
+        return this;
+    }
+
     /*   
      * Remove an event handler for one or more events from the specified element.
      * @param {HTMLElement} elm  
@@ -15471,7 +15711,7 @@ define('skylark-domx-eventer/eventer',[
      * @param {Function} callback
      * @param {Boolean　Optional} one
      */
-    function on(elm, events, selector, data, callback, one) {
+    function on(elm, events, selector, data, callback, ctx,one) {
 
         var autoRemove, delegator;
         if (langx.isPlainObject(events)) {
@@ -15482,16 +15722,24 @@ define('skylark-domx-eventer/eventer',[
         }
 
         if (!langx.isString(selector) && !isHandler(callback)) {
+            one = ctx;
+            ctx = callback;
             callback = data;
             data = selector;
             selector = undefined;
         }
 
         if (isHandler(data)) {
+            one = ctx;
+            ctx = callback;
             callback = data;
             data = undefined;
         }
 
+        if (langx.isBoolean(ctx)) {
+            one = ctx;
+            ctx = undefined;
+        }
         if (callback === false) {
             callback = langx.returnFalse;
         }
@@ -15513,6 +15761,7 @@ define('skylark-domx-eventer/eventer',[
             handler.register(event, callback, {
                 data: data,
                 selector: selector,
+                ctx : ctx,
                 one: !!one
             });
         });
@@ -15681,6 +15930,20 @@ define('skylark-domx-eventer/eventer',[
         }        
     }
 
+    function isNativeEvent(events) {
+        if (langx.isString(events)) {
+            return !!NativeEvents[events];
+        } else if (langx.isArray(events)) {
+            for (var i=0; i<events.length; i++) {
+                if (NativeEvents[events]) {
+                    return false;
+                }
+            }
+            return events.length > 0;
+        }
+    }
+
+
     function eventer() {
         return eventer;
     }
@@ -15688,9 +15951,13 @@ define('skylark-domx-eventer/eventer',[
     langx.mixin(eventer, {
         NativeEvents : NativeEvents,
         
+        clear,
+        
         create: createEvent,
 
         keys: keyCodeLookup,
+
+        isNativeEvent,
 
         off: off,
 
