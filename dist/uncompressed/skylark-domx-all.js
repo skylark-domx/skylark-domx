@@ -11119,7 +11119,7 @@ function removeSelfClosingTags(xml) {
         if (el === false) {
             return browser.exitFullscreen.apply(document);
         } else if (el) {
-            return browser.requestFullscreen.apply(el);
+            return el[browser.support.fullscreen.requestFullscreen]();
             fulledEl = el;
         } else {
             return (
