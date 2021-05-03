@@ -3439,12 +3439,17 @@ define('skylark-langx-events/Listener',[
                 }
 
                 var listeningEvents = listening.events;
+
                 for (var eventName in listeningEvents) {
                     if (event && event != eventName) {
                         continue;
                     }
 
                     var listeningEvent = listeningEvents[eventName];
+
+                    if (!listeningEvent) { 
+                        continue;
+                    }
 
                     for (var j = 0; j < listeningEvent.length; j++) {
                         if (!callback || callback == listeningEvent[i]) {
@@ -3640,6 +3645,10 @@ define('skylark-langx-events/Emitter',[
         },
 
         off: function(events, callback) {
+            if (!events) {
+              this._hub = null;
+              return;
+            }
             var _hub = this._hub || (this._hub = {});
             if (isString(events)) {
                 events = events.split(/\s/)
@@ -15790,8 +15799,8 @@ define('skylark-domx-eventer/eventer',[
      * @param {Anything Optional} data
      * @param {Function} callback
      */
-    function one(elm, events, selector, data, callback) {
-        on(elm, events, selector, data, callback, 1);
+    function one(...args) {
+        on(...args, true);
 
         return this;
     }
@@ -17684,9 +17693,10 @@ define('skylark-domx-fx/bounce',[
 });
 define('skylark-domx-fx/emulateTransitionEnd',[
     "skylark-langx/langx",
+    "skylark-domx-browser",
     "skylark-domx-eventer",
     "./fx"
-],function(langx,eventer,fx) {
+],function(langx,browser,eventer,fx) {
     
     function emulateTransitionEnd(elm,duration) {
         var called = false;
