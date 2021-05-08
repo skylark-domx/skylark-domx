@@ -137,12 +137,6 @@ define('skylark-domx/noder',[
 
     return noder;
 });
-define('skylark-domx/plugins',[
-    "skylark-domx-plugins"
-], function( plugins) {
-    "use strict";
-    return plugins;
-});
 define('skylark-domx/styler',[
     "skylark-domx-styler"
 ], function( styler) {
@@ -192,13 +186,12 @@ define('skylark-domx/main',[
     "./fx",
     "./geom",
     "./noder",
-    "./plugins",
     "./query",
     "./scripter",
     "./styler",
     "./transforms",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,noder,plugins,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,noder,query,scripter,styler,transforms,velm) {
     return {
         browser,
         css,
@@ -207,7 +200,6 @@ define('skylark-domx/main',[
         finder,
         geom,
         noder,
-        plugins,
         query,
         scripter,
         styler,
