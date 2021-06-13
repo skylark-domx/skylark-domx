@@ -131,6 +131,11 @@ define('skylark-domx/geom',[
 
     return geom;
 });
+define('skylark-domx/iframes',[
+    "skylark-domx-iframes"
+], function( iframes) {
+    return iframes;
+});
 define('skylark-domx/noder',[
     "skylark-domx-noder"
 ], function( noder) {
@@ -185,13 +190,14 @@ define('skylark-domx/main',[
     "./finder",
     "./fx",
     "./geom",
+    "./iframes",
     "./noder",
     "./query",
     "./scripter",
     "./styler",
     "./transforms",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,noder,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,noder,iframes,query,scripter,styler,transforms,velm) {
     return {
         browser,
         css,
@@ -200,6 +206,7 @@ define('skylark-domx/main',[
         finder,
         geom,
         noder,
+        iframes,
         query,
         scripter,
         styler,
