@@ -16465,6 +16465,24 @@ define('skylark-domx-geom/geom',[
         }
     }
 
+
+
+    function inview(elm, cushion) {
+        function calibrate(coords, cushion) {
+            var o = {};
+            cushion = +cushion || 0;
+            o.width = (o.right = coords.right + cushion) - (o.left = coords.left - cushion);
+            o.height = (o.bottom = coords.bottom + cushion) - (o.top = coords.top - cushion);
+            return o;
+        }
+
+        var r = calibrate(boundingRect(elm), cushion),
+            vsize = viewportSize();
+
+        return !!r && r.bottom >= 0 && r.right >= 0 && r.top <= vsize.height && r.left <= vsize.width;
+    }
+
+
     /*
      * Get the widths of each margin of the specified element.
      * @param {HTMLElement} elm
@@ -16803,6 +16821,14 @@ define('skylark-domx-geom/geom',[
             return this;
         }
     }
+
+
+    function viewportSize(win) {
+        win = win || window;
+
+        return boundingRect(win);
+    }
+
     /*
      * Get or set the size of the specified element border box.
      * @param {HTMLElement} elm
@@ -16882,6 +16908,8 @@ define('skylark-domx-geom/geom',[
 
         height: height,
 
+        inview,
+
         marginExtents: marginExtents,
 
         marginRect: marginRect,
@@ -16915,6 +16943,8 @@ define('skylark-domx-geom/geom',[
         size: size,
 
         testAxis,
+
+        viewportSize,
 
         width: width
     });
@@ -18662,7 +18692,317 @@ define('skylark-domx/geom',[
 
     return geom;
 });
-define('skylark-domx-iframes/main',[],function(){
+define('skylark-domx-iframes/iframes',[
+	"skylark-langx-ns"
+],function(skylark){
+	return skylark.attach("domx.iframes");
+});
+define('skylark-domx-iframes/create',[
+  "skylark-domx-noder",
+  "./iframes"
+],function(noder,iframes){
+  'use strict';
+
+  function create(options,parentElm) {
+  	  options = options || {
+  	  };
+
+  	  let props = {},
+  	  	  attrs = {};
+
+  	  if (options.id) {
+  	  	props.id = options.id;
+  	  };
+
+  	  if (options.url) {
+  	  	props.src = options.url;
+  	  };
+
+  	  if (options.style) {
+  	  	props.style = options.style;
+  	  }
+
+  	  if (options.onload) {
+  	  	props.onload = options.onload;
+  	  }
+
+  	  if (options.onerror) {
+  	  	props.onload = options.onerror;
+  	  }
+
+  	  if (options.className) {
+  	  	props.className = options.className;
+  	  }
+
+  	  if (options.sandbox) {
+  	  	attrs.sandbox = options.sandbox;
+  	  }
+
+  	  if (options.frameBorder) {
+  	  	attrs.frameBorder = options.frameBorder;  	  	
+  	  }
+
+  	  if (options.name) {
+  	  	attrs.name = options.name;
+  	  }
+
+  	  /*
+      // Basic mode
+      // This adds the runner iframe to the page. It's only run once.
+      //if (!$live.find('iframe').length) {
+        iframe = noder.create("iframe",{
+          ///iframe.src = jsbin.runner;
+          src : this.options.runnerUrl
+        },{
+          "class" : "stretch",
+          "sandbox", "allow-modals allow-forms allow-pointer-lock allow-popups allow-same-origin allow-scripts",
+          "frameBorder": '0',
+          "name", "<proxy>",
+        },this._elm);
+
+        try {
+          ///iframe.contentWindow.name = '/' + jsbin.state.code + '/' + jsbin.state.revision;
+          iframe.contentWindow.name  = this.options.runnerName;
+        } catch (e) {
+          // ^- this shouldn't really fail, but if we're honest, it's a fucking mystery as to why it even works.
+          // problem is: if this throws (because iframe.contentWindow is undefined), then the execution exits
+          // and `var renderLivePreview` is set to undefined. The knock on effect is that the calls to renderLivePreview
+          // then fail, and jsbin doesn't boot up. Tears all round, so we catch.
+        }
+      //}
+
+      iframe.onload = () => {
+        if (window.postMessage) {
+          // setup postMessage listening to the runner
+          $window.on('message', (event) => {
+            this.handleMessage(event.originalEvent)
+          });
+          this.setup(iframe);
+          this._inited.resolve();
+        }
+      };
+
+      iframe.onerror = err => {
+        this._inited.reject(err);
+      };
+
+      */
+
+      let iframe = noder.create("iframe",props,attrs,parentElm);
+
+      if (options.contentWindowName) {
+      	iframe.contentWindow.name = options.contentWindowName;
+      }
+
+      return iframe;
+  }
+
+  return iframes.create = create;
+});
+define('skylark-domx-iframes/hook-sizing',[
+  "skylark-domx-eventer",
+  "./iframes"
+],function(eventer,iframes){
+  'use strict';
+
+  function hookSizing(iframe) {
+    var onmessage = function (event) {
+      if (!event) { event = window.event; }
+      ///TODO : how check message source
+      // * 1 to coerse to number, and + 2 to compensate for border
+      iframe.style.height = (event.data.height * 1 + 2) + 'px';
+    };
+
+    eventer.on(window,'message', onmessage);
+  }
+
+  return iframes.hookSizing = hookSizing;
+
+});
+define('skylark-domx-iframes/load-real',[
+  "skylark-domx-noder",
+  "skylark-domx-data",
+  "./iframes",
+  "./hook-sizing"
+],function(noder,datax,iframes,hookSizing){
+
+  function loadReal(iframe,options) {
+    options = options || {};
+    var clone = noder.clone(iframe);
+    var url = options.url;
+    if (!url) {
+      url = datax.attr(clone,options.urlAttrName || 'data-url');
+    }
+    url = url.split('&')[0];
+    datax.prop(clone,"src",url);
+    datax.prop(clone,"_src",url); // support for google slide embed
+    noder.replace(clone,ifame);
+    ///hookSizing(clone);
+  }
+
+  return iframes.loadReal = loadReal;  
+});
+define('skylark-domx-iframes/lazy-load',[
+	"skylark-domx-eventer",
+	"skylark-domx-data",
+	"skylark-domx-geom",
+	"./iframes",
+	"./load-real"
+],function(eventer,datax,geom,iframes,loadReal){
+	var pending;
+
+
+  	function check() {
+	    var i = 0;
+	    var todo = [];
+	    for (i = 0; i < pending.length; i++) {
+	      if (geom.inview(pending[i], 400)) {
+	        todo.unshift({ iframe: pending[i], i: i });
+	      }
+	    }
+
+	    for (i = todo.length -1 ; i >=0 ; i--) {
+	      pending.splice(todo[i].i, 1);
+	      loadReal(todo[i].iframe);
+	    }
+  	}
+
+	function init() {
+		if (pending) {
+			return
+		}
+
+		pending = [];
+
+		eventer.on(window,"scroll",function(){
+			check();
+		});
+	}
+
+	function lazyLoad(iframe,options) {
+		init();
+
+		options = options || {};
+	
+      	///iframe.setAttribute('data-url', url);
+      	///iframe.src = 'https://jsbin.com/embed-holding';
+      	if (options.url) {
+      		datax.attr(iframe,(options.urlAttrName || "data-url"),options.url)
+      	}
+
+      	if (options.holdingUrl) {
+      		datax.prop(iframe,"src",options.holdingUrl)      		
+      	}
+
+		pending.push(iframe);
+	}
+
+	return iframes.lazyLoad = lazyload
+});
+define('skylark-langx-urls/urls',[
+  "skylark-langx-ns"
+],function(skylark){
+
+
+    return skylark.attach("langx.urls",{
+
+    });
+});
+
+
+
+define('skylark-langx-urls/getQuery',[
+    './urls'
+], function (urls) {
+    'use strict';
+	function getQuery(querystring) {
+		var query = {};
+
+		var pairs = querystring.split('&'),
+		    length = pairs.length,
+		    keyval = [],
+		    i = 0;
+
+		for (; i < length; i++) {
+		  keyval = pairs[i].split('=', 2);
+		  try {
+		    keyval[0] = decodeURIComponent(keyval[0]); // key
+		    keyval[1] = decodeURIComponent(keyval[1]); // value
+		  } catch (e) {}
+
+		  if (query[keyval[0]] === undefined) {
+		    query[keyval[0]] = keyval[1];
+		  } else {
+		    query[keyval[0]] += ',' + keyval[1];
+		  }
+		}
+
+		return query;
+	}
+
+	return urls.getQuery = getQuery;
+
+});
+define('skylark-domx-iframes/replace',[
+  "skylark-langx-urls/getQuery",
+  "skylark-domx-noder",
+  "skylark-domx-geom",
+  "skylark-domx-styler",
+  "./iframes",
+  "./load-real",
+  "./lazy-load"
+],function(getQuery,noder,geom,styler,iframes,loadReal){
+  'use strict';
+  
+  function replace(link,options) {
+    options = options || {};
+
+    var iframe = noder.createElement('iframe',{
+      "className" : link.className, // inherit all the classes from the link
+      "id" : link.id, // also inherit, giving more style control to the user
+      "style" : { "border" : '1px solid #aaa'}
+    });
+    ///var url = link.href.replace(/edit/, 'embed');
+    var url = options.url || link.href,
+        size = options.size || getQuery(link.search),
+        holdingUrl = options.holdingUrl;
+
+    styler.css(iframe,"width", size.width || '100%');
+    styler.css(iframe,"minHeight", size.height || '300px');
+    if (size.height) {
+      styler.css(iframe,"maxHeight", size.height);
+    }
+
+    // track when it comes into view and reload
+    if (geom.inview(link, 100)) {
+      // the iframe is full view, let's render it
+      ///iframe.src = url.split('&')[0];
+      ///iframe._src = url.split('&')[0]; // support for google slide embed
+      ///hookMessaging(iframe);
+      loadReal(iframe,{url})
+    } else {
+      ///iframe.setAttribute('data-url', url);
+      ///iframe.src = 'https://jsbin.com/embed-holding';
+      ///pending.push(iframe);
+      lazyLoad(iframe,{
+        url,
+        holdingUrl
+      });
+
+    }
+
+    noder.replace(iframe, link);
+  }
+
+  return iframes.replace = replace;
+});
+define('skylark-domx-iframes/main',[
+	"./iframes",
+	"./create",
+	"./lazy-load",
+	"./load-real",
+	"./replace"
+],function(){
 	
 });
 define('skylark-domx-iframes', ['skylark-domx-iframes/main'], function (main) { return main; });
