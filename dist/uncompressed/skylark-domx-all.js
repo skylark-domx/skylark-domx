@@ -2163,7 +2163,7 @@ define('skylark-langx-funcs/defer',[
                     return cancelAnimationFrame(id);
                 };
             } else {
-                id = setTimeoutout(fn1,trigger);
+                id = setTimeout(fn1,trigger);
                 ret.cancel = function() {
                     return clearTimeout(id);
                 };
@@ -18897,7 +18897,7 @@ define('skylark-domx-iframes/lazy-load',[
 		pending.push(iframe);
 	}
 
-	return iframes.lazyLoad = lazyload
+	return iframes.lazyLoad = lazyLoad
 });
 define('skylark-langx-urls/urls',[
   "skylark-langx-ns"
@@ -18949,18 +18949,29 @@ define('skylark-domx-iframes/replace',[
   "skylark-domx-geom",
   "skylark-domx-styler",
   "./iframes",
+  "./create",
   "./load-real",
   "./lazy-load"
-],function(getQuery,noder,geom,styler,iframes,loadReal){
+],function(getQuery,noder,geom,styler,iframes,create,loadReal,lazyLoad){
   'use strict';
   
   function replace(link,options) {
     options = options || {};
 
+    /*
     var iframe = noder.createElement('iframe',{
       "className" : link.className, // inherit all the classes from the link
       "id" : link.id, // also inherit, giving more style control to the user
       "style" : { "border" : '1px solid #aaa'}
+    });
+    */
+
+    var ifarme =create({
+      "className" : link.className, // inherit all the classes from the link
+      "id" : link.id, // also inherit, giving more style control to the user
+      "style" : { 
+        "border" : '1px solid #aaa'
+      }
     });
     ///var url = link.href.replace(/edit/, 'embed');
     var url = options.url || link.href,
@@ -19011,6 +19022,17 @@ define('skylark-domx/iframes',[
     "skylark-domx-iframes"
 ], function( iframes) {
     return iframes;
+});
+define('skylark-domx-lists/main',[],function(){
+	
+});
+define('skylark-domx-lists', ['skylark-domx-lists/main'], function (main) { return main; });
+
+define('skylark-domx/lists',[
+    "skylark-domx-lists"
+], function( lists) {
+
+    return lists;
 });
 define('skylark-domx/noder',[
     "skylark-domx-noder"
@@ -19399,13 +19421,14 @@ define('skylark-domx/main',[
     "./fx",
     "./geom",
     "./iframes",
+    "./lists",
     "./noder",
     "./query",
     "./scripter",
     "./styler",
     "./transforms",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,noder,iframes,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,lists,noder,iframes,query,scripter,styler,transforms,velm) {
     return {
         browser,
         css,
@@ -19413,6 +19436,7 @@ define('skylark-domx/main',[
         eventer,
         finder,
         geom,
+        lists,
         noder,
         iframes,
         query,

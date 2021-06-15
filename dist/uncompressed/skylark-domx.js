@@ -136,6 +136,12 @@ define('skylark-domx/iframes',[
 ], function( iframes) {
     return iframes;
 });
+define('skylark-domx/lists',[
+    "skylark-domx-lists"
+], function( lists) {
+
+    return lists;
+});
 define('skylark-domx/noder',[
     "skylark-domx-noder"
 ], function( noder) {
@@ -191,13 +197,14 @@ define('skylark-domx/main',[
     "./fx",
     "./geom",
     "./iframes",
+    "./lists",
     "./noder",
     "./query",
     "./scripter",
     "./styler",
     "./transforms",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,noder,iframes,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,lists,noder,iframes,query,scripter,styler,transforms,velm) {
     return {
         browser,
         css,
@@ -205,6 +212,7 @@ define('skylark-domx/main',[
         eventer,
         finder,
         geom,
+        lists,
         noder,
         iframes,
         query,
