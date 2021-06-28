@@ -11461,7 +11461,7 @@ function removeSelfClosingTags(xml) {
 
 
     function reflow(elm) {
-        if (el == null) {
+        if (!elm) {
           elm = document;
         }
         elm.offsetHeight;
@@ -14934,7 +14934,7 @@ define('skylark-domx-query/query',[
         };
 
         $.fn.reflow = function() {
-            return noder.flow(this[0]);
+            return noder.reflow(this[0]);
         };
 
         $.fn.isBlockNode = function() {
@@ -19023,8 +19023,115 @@ define('skylark-domx/iframes',[
 ], function( iframes) {
     return iframes;
 });
-define('skylark-domx-lists/main',[],function(){
-	
+define('skylark-domx-lists/lists',[
+	"skylark-langx-ns",
+	"skylark-domx-query",
+	"skylark-domx-data",
+	"skylark-domx-geom",
+	"skylark-domx-finder",
+	"skylark-domx-noder",
+	"skylark-domx-styler"
+],function(skylark){
+	return skylark.attach("domx.lists");
+});
+define('skylark-langx/main',[
+    "./langx"
+], function(langx) {
+    return langx;
+});
+
+define('skylark-langx', ['skylark-langx/main'], function (main) { return main; });
+
+define('skylark-domx-lists/multitier',[
+	"skylark-langx",
+	"skylark-domx-query",
+	"./lists"
+],function(langx,$,lists){
+	function multitier(elm,options) {
+		options = langx.mixin({
+			classes : {
+				active : "active",
+				collapse : "collapse",
+				in : "in",
+			},
+
+			selectors : {
+				item : "li",                   // ".list-group-item"
+				sublist : "ul",  // "> .list-group"
+				hasSublist : ":has(ul)",
+				toggler : " > a"
+			},
+
+			mode   : "",  // "tree" or "accordion" or "popover"
+
+			levels : 2,
+
+			multiExpand : false,
+
+			show : function($el) {
+				$el.show();
+			},
+
+			hide : function($el) {
+				$el.hide();
+			},
+
+			toggle : function($el) {
+				$el.toggle();
+			}
+		},options,true);
+
+    var itemSelector = options.selectors.item,
+        $items = $(itemSelector,elm),
+
+        activeClass = options.classes.active,
+        activeSelector = "." + activeClass,
+
+		multitierMode = options.mode,
+
+        sublistSelector = options.selectors.sublist;           
+        multiExpand = options.multiExpand,
+        togglerSelector = options.selectors.toggler,
+
+        collapseClass = options.classes.collapse,
+        inClass = options.classes.in,
+        inSelector = "." + inClass,
+
+        hide = options.hide,
+        toggle = options.toggle;
+
+     $items.has(sublistSelector).find(togglerSelector).on("click.multitier", function(e) {
+          e.preventDefault();
+
+          let $children;
+
+          if (!multiExpand) {
+              ///langx.scall($(this).closest(itemSelector).siblings().removeClass("active").children(sublistSelector+".in").plugin("domx.toggles.collapse"),"hide");
+              $clildren = $(this).closest(itemSelector).siblings().removeClass(activeClass).children(sublistSelector+"."+options.classes.in);
+              if ($children) {
+	              hide($children);
+              }
+          }
+          //$(this).closest(itemSelector).toggleClass(activeClass).children(sublistSelector).plugin("domx.toggles.collapse").toggle();
+          $children = $(this).closest(itemSelector).toggleClass(activeClass).children(options.selectors.sublist);
+          if ($children) {
+	          toggle($children);
+	      }
+      });
+
+      $items.filter(activeSelector).has(sublistSelector).children(sublistSelector).addClass(collapseClass).addClass(inClass);
+      $items.not(activeSelector).has(sublistSelector).children(sublistSelector).addClass(collapseClass);
+
+
+	}
+
+	return lists.multitier = multitier
+});
+define('skylark-domx-lists/main',[
+	"./lists",
+	"./multitier"
+],function(lists){
+	return lists;
 });
 define('skylark-domx-lists', ['skylark-domx-lists/main'], function (main) { return main; });
 
