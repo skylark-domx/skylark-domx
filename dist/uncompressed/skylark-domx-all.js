@@ -13950,13 +13950,23 @@ define('skylark-domx-data/data',[
      * @param {String} value
      */
     function prop(elm, name, value) {
-        name = propMap[name] || name;
-        if (value === undefined) {
-            return elm[name];
-        } else {
-            elm[name] = value;
-            return this;
-        }
+      if (value === undefined) {
+          if (typeof name === "object") {
+              for (var propName in name) {
+                  prop(elm, propName, name[propName]);
+              }
+              return this;
+          } 
+      } 
+
+
+      name = propMap[name] || name;
+      if (value === undefined) {
+          return elm[name];
+      } else {
+          elm[name] = value;
+          return this;
+      }
     }
 
     /*
@@ -13991,9 +14001,14 @@ define('skylark-domx-data/data',[
      */
     function text(elm, txt) {
         if (txt === undefined) {
-            return elm.textContent;
+            return elm.textContent !==undefined  ? elm.textContent : elm.innerText;
         } else {
-            elm.textContent = txt == null ? '' : '' + txt;
+            txt = txt == null ? '' : '' + txt ;
+            if (elm.textContent !==undefined ) {
+              elm.textContent = txt ;
+            } else {
+              elm.innerText = txt ;
+            }
             return this;
         }
     }
@@ -17421,9 +17436,11 @@ define('skylark-domx-geom/main',[
         "scrollIntoView",
         "scrollLeft",
         "scrollTop",
-        "size",
+        "pageSize",
         "width"
-    ], geom);
+    ], geom,{
+        "pageSize" : "size"
+    });
 
     $.fn.offset = $.wraps.wrapper_value(geom.pagePosition, geom, geom.pagePosition);
 
@@ -17455,7 +17472,7 @@ define('skylark-domx-geom/main',[
     $.fn.offsetParent = $.wraps.wrapper_map(geom.offsetParent, geom);
 
 
-    $.fn.size = $.wraps.wrapper_value(geom.size, geom);
+    $.fn.pageSize = $.wraps.wrapper_value(geom.size, geom);
 
     $.fn.width = $.wraps.wrapper_value(geom.width, geom, geom.width);
 
