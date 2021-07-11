@@ -86,6 +86,11 @@
 
 })(function(define,require) {
 
+define('skylark-domx/animates',[
+    "skylark-domx-animates"
+], function( animates) {
+    return animates;
+});
 define('skylark-domx/browser',[
     "skylark-domx-browser"
 ], function(browser) {
@@ -166,18 +171,17 @@ define('skylark-domx/query',[
     return query;
 
 });
-define('skylark-domx/scripter',[
-    "skylark-domx-scripter"
-], function( scripter) {
-
-    return scripter;
-});
 define('skylark-domx/transforms',[
     "skylark-domx-transforms"
 ], function(transforms) {
   return transforms;
 });
 
+define('skylark-domx/transits',[
+    "skylark-domx-transits"
+], function( transits) {
+    return transits;
+});
 define('skylark-domx/velm',[
     "skylark-domx-velm",
     "./data",
@@ -189,6 +193,7 @@ define('skylark-domx/velm',[
      return velm;
 });
 define('skylark-domx/main',[
+    "./animates",
     "./browser",
     "./css",
     "./data",
@@ -200,12 +205,13 @@ define('skylark-domx/main',[
     "./lists",
     "./noder",
     "./query",
-    "./scripter",
     "./styler",
     "./transforms",
+    "./transits",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,iframes,lists,noder,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,iframes,lists,noder,query,styler,transforms,velm) {
     return {
+        animates,
         browser,
         css,
         data,
@@ -216,9 +222,9 @@ define('skylark-domx/main',[
         noder,
         iframes,
         query,
-        scripter,
         styler,
         transforms,
+        transits,
         velm
     };
 })

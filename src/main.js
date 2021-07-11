@@ -1,4 +1,5 @@
 define([
+    "./animates",
     "./browser",
     "./css",
     "./data",
@@ -10,12 +11,13 @@ define([
     "./lists",
     "./noder",
     "./query",
-    "./scripter",
     "./styler",
     "./transforms",
+    "./transits",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,iframes,lists,noder,query,scripter,styler,transforms,velm) {
+], function(browser,css,data,eventer,finder,fx,geom,iframes,lists,noder,query,styler,transforms,velm) {
     return {
+        animates,
         browser,
         css,
         data,
@@ -26,9 +28,9 @@ define([
         noder,
         iframes,
         query,
-        scripter,
         styler,
         transforms,
+        transits,
         velm
     };
 })
