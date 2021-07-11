@@ -3382,6 +3382,7 @@ define('skylark-langx-events/Listener',[
     var slice = Array.prototype.slice,
         compact = arrays.compact,
         isDefined = types.isDefined,
+        isUndefined = types.isUndefined,
         isPlainObject = types.isPlainObject,
         isFunction = types.isFunction,
         isBoolean = types.isBoolean,
@@ -3393,14 +3394,22 @@ define('skylark-langx-events/Listener',[
 
     var Listener = klass({
 
-        listenTo: function(obj, event, callback, /*used internally*/ one) {
+        listenTo: function(obj, event, selector,callback, /*used internally*/ one) {
             if (!obj) {
                 return this;
             }
 
             if (isBoolean(callback)) {
                 one = callback;
-                callback = null;
+                callback = selector;
+                selector = null;
+            } else if (isBoolean(selector)) {
+                one = selector;
+                callback = selector = null;
+            } else if (isUndefined(callback)){
+                one = false;
+                callback = selector;
+                selector = null;
             }
 
             if (types.isPlainObject(event)){
@@ -3422,9 +3431,17 @@ define('skylark-langx-events/Listener',[
             }
 
             if (one) {
-                obj.one(event, callback, this);
+                if (selector) {
+                    obj.one(event, selector,callback, this);
+                } else {
+                    obj.one(event, callback, this);
+                }
             } else {
-                obj.on(event, callback, this);
+                 if (selector) {
+                    obj.on(event, selector, callback, this);
+                } else {
+                    obj.on(event, callback, this);
+                }
             }
 
             //keep track of them on listening.
@@ -3454,8 +3471,8 @@ define('skylark-langx-events/Listener',[
             return this;
         },
 
-        listenToOnce: function(obj, event, callback) {
-            return this.listenTo(obj, event, callback, 1);
+        listenToOnce: function(obj, event,selector, callback) {
+            return this.listenTo(obj, event,selector, callback, 1);
         },
 
         unlistenTo: function(obj, event, callback) {
@@ -10622,26 +10639,6 @@ define('skylark-langx/langx',[
 
     return skylark.langx = langx;
 });
-define('skylark-domx-animates/animates',[
-    "skylark-langx/skylark",
-    "skylark-langx/langx"
-], function(skylark,langx) {
-
-    function animates() {
-        return fx;
-    }
-
-    langx.mixin(fx, {
-        off: false,
-        speeds: {
-            normal: 400,
-            fast: 200,
-            slow: 600
-        }
-    });
-
-    return skylark.attach("domx.animates", animates);
-});
 define('skylark-domx-browser/browser',[
     "skylark-langx/skylark",
     "skylark-langx/langx"
@@ -10874,11 +10871,189 @@ define('skylark-domx-browser/main',[
 });
 define('skylark-domx-browser', ['skylark-domx-browser/main'], function (main) { return main; });
 
-define('skylark-domx-noder/noder',[
+define('skylark-domx-animates/animates',[
     "skylark-langx/skylark",
     "skylark-langx/langx",
     "skylark-domx-browser"
-], function(skylark, langx, browser) {
+], function(skylark,langx,browser) {
+
+    function animates() {
+        return animates;
+    }
+
+    langx.mixin(animates, {
+        off: false,
+        speeds: {
+            normal: 400,
+            fast: 200,
+            slow: 600
+        },
+        animationName : browser.normalizeCssProperty("animation-name"),
+        animationDuration : browser.normalizeCssProperty("animation-duration"),
+        animationDelay : browser.normalizeCssProperty("animation-delay"),
+        animationTiming : browser.normalizeCssProperty("animation-timing-function"),
+        animationEnd : browser.normalizeCssEvent('AnimationEnd'),
+
+        animateBaseClass : "animated"
+    });
+
+    return skylark.attach("domx.animates", animates);
+});
+define('skylark-langx-scripter/scripter',[
+    "skylark-langx/skylark",
+    "skylark-langx/langx"
+], function(skylark, langx, noder) {
+
+    var head = document.getElementsByTagName('head')[0],
+        scriptsByUrl = {},
+        scriptElementsById = {},
+        count = 0;
+
+    var rscriptType = ( /^$|^module$|\/(?:java|ecma)script/i );
+
+    function scripter() {
+        return scripter;
+    }
+
+
+    var preservedScriptAttributes = {
+        type: true,
+        src: true,
+        nonce: true,
+        noModule: true
+    };
+
+    function evaluate(code,node, doc ) {
+        doc = doc || document;
+
+        var i, val,
+            script = doc.createElement("script");
+
+        script.text = code;
+        if ( node ) {
+            for ( i in preservedScriptAttributes ) {
+
+                // Support: Firefox 64+, Edge 18+
+                // Some browsers don't support the "nonce" property on scripts.
+                // On the other hand, just using `getAttribute` is not enough as
+                // the `nonce` attribute is reset to an empty string whenever it
+                // becomes browsing-context connected.
+                // See https://github.com/whatwg/html/issues/2369
+                // See https://html.spec.whatwg.org/#nonce-attributes
+                // The `node.getAttribute` check was added for the sake of
+                // `jQuery.globalEval` so that it can fake a nonce-containing node
+                // via an object.
+                val = node[ i ] || node.getAttribute && node.getAttribute( i );
+                if ( val ) {
+                    script.setAttribute( i, val );
+                }
+            }
+        }
+        doc.head.appendChild( script ).parentNode.removeChild( script );
+
+        return this;
+    }
+
+    langx.mixin(scripter, {
+        /*
+         * Load a script from a url into the document.
+         * @param {} url
+         * @param {} loadedCallback
+         * @param {} errorCallback
+         */
+        loadJavaScript: function(url, loadedCallback, errorCallback) {
+            var script = scriptsByUrl[url];
+            if (!script) {
+                script = scriptsByUrl[url] = {
+                    state: 0, //0:unload,1:loaded,-1:loaderror
+                    loadedCallbacks: [],
+                    errorCallbacks: []
+                }
+            }
+
+            script.loadedCallbacks.push(loadedCallback);
+            script.errorCallbacks.push(errorCallback);
+
+            if (script.state === 1) {
+                script.node.onload();
+            } else if (script.state === -1) {
+                script.node.onerror();
+            } else {
+                var node = script.node = document.createElement("script"),
+                    id = script.id = (count++);
+
+                node.type = "text/javascript";
+                node.async = false;
+                node.defer = false;
+                startTime = new Date().getTime();
+                head.appendChild(node);
+
+                node.onload = function() {
+                        script.state = 1;
+
+                        var callbacks = script.loadedCallbacks,
+                            i = callbacks.length;
+
+                        while (i--) {
+                            callbacks[i]();
+                        }
+                        script.loadedCallbacks = [];
+                        script.errorCallbacks = [];
+                    },
+                    node.onerror = function() {
+                        script.state = -1;
+                        var callbacks = script.errorCallbacks,
+                            i = callbacks.length;
+
+                        while (i--) {
+                            callbacks[i]();
+                        }
+                        script.loadedCallbacks = [];
+                        script.errorCallbacks = [];
+                    };
+                node.src = url;
+
+                scriptElementsById[id] = node;
+            }
+            return script.id;
+        },
+        /*
+         * Remove the specified script from the document.
+         * @param {Number} id
+         */
+        deleteJavaScript: function(id) {
+            var node = scriptElementsById[id];
+            if (node) {
+                var url = node.src;
+                if (node.parentNode) {
+                    node.parentNode.remove(node);
+                }
+                delete scriptElementsById[id];
+                delete scriptsByUrl[url];
+            }
+        },
+
+        evaluate : evaluate,
+
+
+    });
+
+    return skylark.attach("langx.scripter", scripter);
+});
+define('skylark-langx-scripter/main',[
+	"./scripter"
+],function(scripter){
+	
+	return scripter;
+});
+define('skylark-langx-scripter', ['skylark-langx-scripter/main'], function (main) { return main; });
+
+define('skylark-domx-noder/noder',[
+    "skylark-langx/skylark",
+    "skylark-langx/langx",
+    "skylark-langx-scripter",
+    "skylark-domx-browser"
+], function(skylark, langx, scripter,browser) {
     var isIE = !!navigator.userAgent.match(/Trident/g) || !!navigator.userAgent.match(/MSIE/g),
         fragmentRE = /^\s*<(\w+|!)[^>]*>/,
         singleTagRE = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
@@ -11275,7 +11450,7 @@ function removeSelfClosingTags(xml) {
      * @param {HTMLElement} node
      * @param {String} html
      */
-    function html(node, html) {
+    function _html(node, html) {
         if (html === undefined) {
             return node.innerHTML;
         } else {
@@ -11298,6 +11473,24 @@ function removeSelfClosingTags(xml) {
         }
     }
 
+
+    function html(node,value) {
+        var result = _html(node,value);
+
+        if (value !== undefined) {
+            var scripts = node.querySelectorAll('script');
+
+            for (var i =0; i<scripts.length; i++) {
+                var node1 = scripts[i];
+                if (rscriptType.test( node1.type || "" ) ) {
+                  scripter.evaluate(node1.textContent,node1);
+                }
+            }       
+            return this;         
+        } else {
+            return result;
+        }
+    }
 
     /*   
      * Check to see if a dom node is a descendant of another dom node.
@@ -12087,6 +12280,8 @@ define('skylark-domx-geom/geom',[
     "skylark-domx-noder",
     "skylark-domx-styler"
 ], function(skylark, langx, noder, styler) {
+  'use strict'
+
     var rootNodeRE = /^(?:body|html)$/i,
         px = langx.toPixel,
         offsetParent = noder.offsetParent,
@@ -12818,447 +13013,7 @@ define('skylark-domx-geom/geom',[
         width: width
     });
 
-    ( function() {
-        var max = Math.max,
-            abs = Math.abs,
-            rhorizontal = /left|center|right/,
-            rvertical = /top|center|bottom/,
-            roffset = /[\+\-]\d+(\.[\d]+)?%?/,
-            rposition = /^\w+/,
-            rpercent = /%$/;
 
-        function getOffsets( offsets, width, height ) {
-            return [
-                parseFloat( offsets[ 0 ] ) * ( rpercent.test( offsets[ 0 ] ) ? width / 100 : 1 ),
-                parseFloat( offsets[ 1 ] ) * ( rpercent.test( offsets[ 1 ] ) ? height / 100 : 1 )
-            ];
-        }
-
-        function parseCss( element, property ) {
-            return parseInt( styler.css( element, property ), 10 ) || 0;
-        }
-
-        function getDimensions( raw ) {
-            if ( raw.nodeType === 9 ) {
-                return {
-                    size: size(raw),
-                    offset: { top: 0, left: 0 }
-                };
-            }
-            if ( noder.isWindow( raw ) ) {
-                return {
-                    size: size(raw),
-                    offset: { 
-                        top: scrollTop(raw), 
-                        left: scrollLeft(raw) 
-                    }
-                };
-            }
-            if ( raw.preventDefault ) {
-                return {
-                    size : {
-                        width: 0,
-                        height: 0
-                    },
-                    offset: { 
-                        top: raw.pageY, 
-                        left: raw.pageX 
-                    }
-                };
-            }
-            return {
-                size: size(raw),
-                offset: pagePosition(raw)
-            };
-        }
-
-        function getScrollInfo( within ) {
-            var overflowX = within.isWindow || within.isDocument ? "" :
-                    styler.css(within.element,"overflow-x" ),
-                overflowY = within.isWindow || within.isDocument ? "" :
-                    styler.css(within.element,"overflow-y" ),
-                hasOverflowX = overflowX === "scroll" ||
-                    ( overflowX === "auto" && within.width < scrollWidth(within.element) ),
-                hasOverflowY = overflowY === "scroll" ||
-                    ( overflowY === "auto" && within.height < scrollHeight(within.element));
-            return {
-                width: hasOverflowY ? scrollbarWidth() : 0,
-                height: hasOverflowX ? scrollbarWidth() : 0
-            };
-        }
-
-        function getWithinInfo( element ) {
-            var withinElement = element || window,
-                isWindow = noder.isWindow( withinElement),
-                isDocument = !!withinElement && withinElement.nodeType === 9,
-                hasOffset = !isWindow && !isDocument,
-                msize = marginSize(withinElement);
-            return {
-                element: withinElement,
-                isWindow: isWindow,
-                isDocument: isDocument,
-                offset: hasOffset ? pagePosition(element) : { left: 0, top: 0 },
-                scrollLeft: scrollLeft(withinElement),
-                scrollTop: scrollTop(withinElement),
-                width: msize.width,
-                height: msize.height
-            };
-        }
-
-        function posit(elm,options ) {
-            // Make a copy, we don't want to modify arguments
-            options = langx.extend( {}, options );
-
-            var atOffset, targetWidth, targetHeight, targetOffset, basePosition, dimensions,
-                target = options.of,
-                within = getWithinInfo( options.within ),
-                scrollInfo = getScrollInfo( within ),
-                collision = ( options.collision || "flip" ).split( " " ),
-                offsets = {};
-
-            dimensions = getDimensions( target );
-            if ( target.preventDefault ) {
-
-                // Force left top to allow flipping
-                options.at = "left top";
-            }
-            targetWidth = dimensions.size.width;
-            targetHeight = dimensions.size.height;
-            targetOffset = dimensions.offset;
-
-            // Clone to reuse original targetOffset later
-            basePosition = langx.extend( {}, targetOffset );
-
-            // Force my and at to have valid horizontal and vertical positions
-            // if a value is missing or invalid, it will be converted to center
-            langx.each( [ "my", "at" ], function() {
-                var pos = ( options[ this ] || "" ).split( " " ),
-                    horizontalOffset,
-                    verticalOffset;
-
-                if ( pos.length === 1 ) {
-                    pos = rhorizontal.test( pos[ 0 ] ) ?
-                        pos.concat( [ "center" ] ) :
-                        rvertical.test( pos[ 0 ] ) ?
-                            [ "center" ].concat( pos ) :
-                            [ "center", "center" ];
-                }
-                pos[ 0 ] = rhorizontal.test( pos[ 0 ] ) ? pos[ 0 ] : "center";
-                pos[ 1 ] = rvertical.test( pos[ 1 ] ) ? pos[ 1 ] : "center";
-
-                // Calculate offsets
-                horizontalOffset = roffset.exec( pos[ 0 ] );
-                verticalOffset = roffset.exec( pos[ 1 ] );
-                offsets[ this ] = [
-                    horizontalOffset ? horizontalOffset[ 0 ] : 0,
-                    verticalOffset ? verticalOffset[ 0 ] : 0
-                ];
-
-                // Reduce to just the positions without the offsets
-                options[ this ] = [
-                    rposition.exec( pos[ 0 ] )[ 0 ],
-                    rposition.exec( pos[ 1 ] )[ 0 ]
-                ];
-            } );
-
-            // Normalize collision option
-            if ( collision.length === 1 ) {
-                collision[ 1 ] = collision[ 0 ];
-            }
-
-            if ( options.at[ 0 ] === "right" ) {
-                basePosition.left += targetWidth;
-            } else if ( options.at[ 0 ] === "center" ) {
-                basePosition.left += targetWidth / 2;
-            }
-
-            if ( options.at[ 1 ] === "bottom" ) {
-                basePosition.top += targetHeight;
-            } else if ( options.at[ 1 ] === "center" ) {
-                basePosition.top += targetHeight / 2;
-            }
-
-            atOffset = getOffsets( offsets.at, targetWidth, targetHeight );
-            basePosition.left += atOffset[ 0 ];
-            basePosition.top += atOffset[ 1 ];
-
-            return ( function(elem) {
-                var collisionPosition, using,
-                    msize = marginSize(elem),
-                    elemWidth = msize.width,
-                    elemHeight = msize.height,
-                    marginLeft = parseCss( elem, "marginLeft" ),
-                    marginTop = parseCss( elem, "marginTop" ),
-                    collisionWidth = elemWidth + marginLeft + parseCss( elem, "marginRight" ) +
-                        scrollInfo.width,
-                    collisionHeight = elemHeight + marginTop + parseCss( elem, "marginBottom" ) +
-                        scrollInfo.height,
-                    position = langx.extend( {}, basePosition ),
-                    myOffset = getOffsets( offsets.my, msize.width, msize.height);
-
-                if ( options.my[ 0 ] === "right" ) {
-                    position.left -= elemWidth;
-                } else if ( options.my[ 0 ] === "center" ) {
-                    position.left -= elemWidth / 2;
-                }
-
-                if ( options.my[ 1 ] === "bottom" ) {
-                    position.top -= elemHeight;
-                } else if ( options.my[ 1 ] === "center" ) {
-                    position.top -= elemHeight / 2;
-                }
-
-                position.left += myOffset[ 0 ];
-                position.top += myOffset[ 1 ];
-
-                collisionPosition = {
-                    marginLeft: marginLeft,
-                    marginTop: marginTop
-                };
-
-                langx.each( [ "left", "top" ], function( i, dir ) {
-                    if ( positions[ collision[ i ] ] ) {
-                        positions[ collision[ i ] ][ dir ]( position, {
-                            targetWidth: targetWidth,
-                            targetHeight: targetHeight,
-                            elemWidth: elemWidth,
-                            elemHeight: elemHeight,
-                            collisionPosition: collisionPosition,
-                            collisionWidth: collisionWidth,
-                            collisionHeight: collisionHeight,
-                            offset: [ atOffset[ 0 ] + myOffset[ 0 ], atOffset [ 1 ] + myOffset[ 1 ] ],
-                            my: options.my,
-                            at: options.at,
-                            within: within,
-                            elem: elem
-                        } );
-                    }
-                } );
-
-                if ( options.using ) {
-
-                    // Adds feedback as second argument to using callback, if present
-                    using = function( props ) {
-                        var left = targetOffset.left - position.left,
-                            right = left + targetWidth - elemWidth,
-                            top = targetOffset.top - position.top,
-                            bottom = top + targetHeight - elemHeight,
-                            feedback = {
-                                target: {
-                                    element: target,
-                                    left: targetOffset.left,
-                                    top: targetOffset.top,
-                                    width: targetWidth,
-                                    height: targetHeight
-                                },
-                                element: {
-                                    element: elem,
-                                    left: position.left,
-                                    top: position.top,
-                                    width: elemWidth,
-                                    height: elemHeight
-                                },
-                                horizontal: right < 0 ? "left" : left > 0 ? "right" : "center",
-                                vertical: bottom < 0 ? "top" : top > 0 ? "bottom" : "middle"
-                            };
-                        if ( targetWidth < elemWidth && abs( left + right ) < targetWidth ) {
-                            feedback.horizontal = "center";
-                        }
-                        if ( targetHeight < elemHeight && abs( top + bottom ) < targetHeight ) {
-                            feedback.vertical = "middle";
-                        }
-                        if ( max( abs( left ), abs( right ) ) > max( abs( top ), abs( bottom ) ) ) {
-                            feedback.important = "horizontal";
-                        } else {
-                            feedback.important = "vertical";
-                        }
-                        options.using.call( this, props, feedback );
-                    };
-                }
-
-                pagePosition(elem, langx.extend( position, { using: using } ));
-            })(elm);
-        }
-
-        var positions = {
-            fit: {
-                left: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.isWindow ? within.scrollLeft : within.offset.left,
-                        outerWidth = within.width,
-                        collisionPosLeft = position.left - data.collisionPosition.marginLeft,
-                        overLeft = withinOffset - collisionPosLeft,
-                        overRight = collisionPosLeft + data.collisionWidth - outerWidth - withinOffset,
-                        newOverRight;
-
-                    // Element is wider than within
-                    if ( data.collisionWidth > outerWidth ) {
-
-                        // Element is initially over the left side of within
-                        if ( overLeft > 0 && overRight <= 0 ) {
-                            newOverRight = position.left + overLeft + data.collisionWidth - outerWidth -
-                                withinOffset;
-                            position.left += overLeft - newOverRight;
-
-                        // Element is initially over right side of within
-                        } else if ( overRight > 0 && overLeft <= 0 ) {
-                            position.left = withinOffset;
-
-                        // Element is initially over both left and right sides of within
-                        } else {
-                            if ( overLeft > overRight ) {
-                                position.left = withinOffset + outerWidth - data.collisionWidth;
-                            } else {
-                                position.left = withinOffset;
-                            }
-                        }
-
-                    // Too far left -> align with left edge
-                    } else if ( overLeft > 0 ) {
-                        position.left += overLeft;
-
-                    // Too far right -> align with right edge
-                    } else if ( overRight > 0 ) {
-                        position.left -= overRight;
-
-                    // Adjust based on position and margin
-                    } else {
-                        position.left = max( position.left - collisionPosLeft, position.left );
-                    }
-                },
-                top: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.isWindow ? within.scrollTop : within.offset.top,
-                        outerHeight = data.within.height,
-                        collisionPosTop = position.top - data.collisionPosition.marginTop,
-                        overTop = withinOffset - collisionPosTop,
-                        overBottom = collisionPosTop + data.collisionHeight - outerHeight - withinOffset,
-                        newOverBottom;
-
-                    // Element is taller than within
-                    if ( data.collisionHeight > outerHeight ) {
-
-                        // Element is initially over the top of within
-                        if ( overTop > 0 && overBottom <= 0 ) {
-                            newOverBottom = position.top + overTop + data.collisionHeight - outerHeight -
-                                withinOffset;
-                            position.top += overTop - newOverBottom;
-
-                        // Element is initially over bottom of within
-                        } else if ( overBottom > 0 && overTop <= 0 ) {
-                            position.top = withinOffset;
-
-                        // Element is initially over both top and bottom of within
-                        } else {
-                            if ( overTop > overBottom ) {
-                                position.top = withinOffset + outerHeight - data.collisionHeight;
-                            } else {
-                                position.top = withinOffset;
-                            }
-                        }
-
-                    // Too far up -> align with top
-                    } else if ( overTop > 0 ) {
-                        position.top += overTop;
-
-                    // Too far down -> align with bottom edge
-                    } else if ( overBottom > 0 ) {
-                        position.top -= overBottom;
-
-                    // Adjust based on position and margin
-                    } else {
-                        position.top = max( position.top - collisionPosTop, position.top );
-                    }
-                }
-            },
-            flip: {
-                left: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.offset.left + within.scrollLeft,
-                        outerWidth = within.width,
-                        offsetLeft = within.isWindow ? within.scrollLeft : within.offset.left,
-                        collisionPosLeft = position.left - data.collisionPosition.marginLeft,
-                        overLeft = collisionPosLeft - offsetLeft,
-                        overRight = collisionPosLeft + data.collisionWidth - outerWidth - offsetLeft,
-                        myOffset = data.my[ 0 ] === "left" ?
-                            -data.elemWidth :
-                            data.my[ 0 ] === "right" ?
-                                data.elemWidth :
-                                0,
-                        atOffset = data.at[ 0 ] === "left" ?
-                            data.targetWidth :
-                            data.at[ 0 ] === "right" ?
-                                -data.targetWidth :
-                                0,
-                        offset = -2 * data.offset[ 0 ],
-                        newOverRight,
-                        newOverLeft;
-
-                    if ( overLeft < 0 ) {
-                        newOverRight = position.left + myOffset + atOffset + offset + data.collisionWidth -
-                            outerWidth - withinOffset;
-                        if ( newOverRight < 0 || newOverRight < abs( overLeft ) ) {
-                            position.left += myOffset + atOffset + offset;
-                        }
-                    } else if ( overRight > 0 ) {
-                        newOverLeft = position.left - data.collisionPosition.marginLeft + myOffset +
-                            atOffset + offset - offsetLeft;
-                        if ( newOverLeft > 0 || abs( newOverLeft ) < overRight ) {
-                            position.left += myOffset + atOffset + offset;
-                        }
-                    }
-                },
-                top: function( position, data ) {
-                    var within = data.within,
-                        withinOffset = within.offset.top + within.scrollTop,
-                        outerHeight = within.height,
-                        offsetTop = within.isWindow ? within.scrollTop : within.offset.top,
-                        collisionPosTop = position.top - data.collisionPosition.marginTop,
-                        overTop = collisionPosTop - offsetTop,
-                        overBottom = collisionPosTop + data.collisionHeight - outerHeight - offsetTop,
-                        top = data.my[ 1 ] === "top",
-                        myOffset = top ?
-                            -data.elemHeight :
-                            data.my[ 1 ] === "bottom" ?
-                                data.elemHeight :
-                                0,
-                        atOffset = data.at[ 1 ] === "top" ?
-                            data.targetHeight :
-                            data.at[ 1 ] === "bottom" ?
-                                -data.targetHeight :
-                                0,
-                        offset = -2 * data.offset[ 1 ],
-                        newOverTop,
-                        newOverBottom;
-                    if ( overTop < 0 ) {
-                        newOverBottom = position.top + myOffset + atOffset + offset + data.collisionHeight -
-                            outerHeight - withinOffset;
-                        if ( newOverBottom < 0 || newOverBottom < abs( overTop ) ) {
-                            position.top += myOffset + atOffset + offset;
-                        }
-                    } else if ( overBottom > 0 ) {
-                        newOverTop = position.top - data.collisionPosition.marginTop + myOffset + atOffset +
-                            offset - offsetTop;
-                        if ( newOverTop > 0 || abs( newOverTop ) < overBottom ) {
-                            position.top += myOffset + atOffset + offset;
-                        }
-                    }
-                }
-            },
-            flipfit: {
-                left: function() {
-                    positions.flip.left.apply( this, arguments );
-                    positions.fit.left.apply( this, arguments );
-                },
-                top: function() {
-                    positions.flip.top.apply( this, arguments );
-                    positions.fit.top.apply( this, arguments );
-                }
-            }
-        };
-
-        geom.posit = posit;
-    })();
 
     return skylark.attach("domx.geom", geom);
 });
@@ -15621,11 +15376,499 @@ define('skylark-domx-velm/main',[
 });
 define('skylark-domx-velm', ['skylark-domx-velm/main'], function (main) { return main; });
 
+define('skylark-domx-geom/posit',[
+    "skylark-langx/langx",
+    "skylark-domx-noder",
+    "skylark-domx-styler",
+	"./geom"
+],function(langx,noder,styler,geom){
+  'use strict'
+
+
+
+
+    var max = Math.max,
+        abs = Math.abs,
+        rhorizontal = /left|center|right/,
+        rvertical = /top|center|bottom/,
+        roffset = /[\+\-]\d+(\.[\d]+)?%?/,
+        rposition = /^\w+/,
+        rpercent = /%$/;
+
+    function getOffsets( offsets, width, height ) {
+        return [
+            parseFloat( offsets[ 0 ] ) * ( rpercent.test( offsets[ 0 ] ) ? width / 100 : 1 ),
+            parseFloat( offsets[ 1 ] ) * ( rpercent.test( offsets[ 1 ] ) ? height / 100 : 1 )
+        ];
+    }
+
+    function parseCss( element, property ) {
+        return parseInt( styler.css( element, property ), 10 ) || 0;
+    }
+
+    function getDimensions( raw ) {
+        if ( raw.nodeType === 9 ) {
+            return {
+                size: size(raw),
+                offset: { top: 0, left: 0 }
+            };
+        }
+        if ( noder.isWindow( raw ) ) {
+            return {
+                size: geom.size(raw),
+                offset: { 
+                    top: geom.scrollTop(raw), 
+                    left: geom.scrollLeft(raw) 
+                }
+            };
+        }
+        if ( raw.preventDefault ) {
+            return {
+                size : {
+                    width: 0,
+                    height: 0
+                },
+                offset: { 
+                    top: raw.pageY, 
+                    left: raw.pageX 
+                }
+            };
+        }
+        return {
+            size: geom.size(raw),
+            offset: geom.pagePosition(raw)
+        };
+    }
+
+    function getScrollInfo( within ) {
+        var overflowX = within.isWindow || within.isDocument ? "" :
+                styler.css(within.element,"overflow-x" ),
+            overflowY = within.isWindow || within.isDocument ? "" :
+                styler.css(within.element,"overflow-y" ),
+            hasOverflowX = overflowX === "scroll" ||
+                ( overflowX === "auto" && within.width < geom.scrollWidth(within.element) ),
+            hasOverflowY = overflowY === "scroll" ||
+                ( overflowY === "auto" && within.height < geom.scrollHeight(within.element));
+        return {
+            width: hasOverflowY ? geom.scrollbarWidth() : 0,
+            height: hasOverflowX ? geom.scrollbarWidth() : 0
+        };
+    }
+
+    function getWithinInfo( element ) {
+        var withinElement = element || window,
+            isWindow = noder.isWindow( withinElement),
+            isDocument = !!withinElement && withinElement.nodeType === 9,
+            hasOffset = !isWindow && !isDocument,
+            msize = marginSize(withinElement);
+        return {
+            element: withinElement,
+            isWindow: isWindow,
+            isDocument: isDocument,
+            offset: hasOffset ? geom.pagePosition(element) : { left: 0, top: 0 },
+            scrollLeft: geom.scrollLeft(withinElement),
+            scrollTop: geom.scrollTop(withinElement),
+            width: msize.width,
+            height: msize.height
+        };
+    }
+
+    function posit(elm,options ) {
+        // Make a copy, we don't want to modify arguments
+        options = langx.extend( {}, options );
+
+        var atOffset, targetWidth, targetHeight, targetOffset, basePosition, dimensions,
+            target = options.of,
+            within = getWithinInfo( options.within ),
+            scrollInfo = getScrollInfo( within ),
+            collision = ( options.collision || "flip" ).split( " " ),
+            offsets = {};
+
+        dimensions = getDimensions( target );
+        if ( target.preventDefault ) {
+
+            // Force left top to allow flipping
+            options.at = "left top";
+        }
+        targetWidth = dimensions.size.width;
+        targetHeight = dimensions.size.height;
+        targetOffset = dimensions.offset;
+
+        // Clone to reuse original targetOffset later
+        basePosition = langx.extend( {}, targetOffset );
+
+        // Force my and at to have valid horizontal and vertical positions
+        // if a value is missing or invalid, it will be converted to center
+        langx.each( [ "my", "at" ], function() {
+            var pos = ( options[ this ] || "" ).split( " " ),
+                horizontalOffset,
+                verticalOffset;
+
+            if ( pos.length === 1 ) {
+                pos = rhorizontal.test( pos[ 0 ] ) ?
+                    pos.concat( [ "center" ] ) :
+                    rvertical.test( pos[ 0 ] ) ?
+                        [ "center" ].concat( pos ) :
+                        [ "center", "center" ];
+            }
+            pos[ 0 ] = rhorizontal.test( pos[ 0 ] ) ? pos[ 0 ] : "center";
+            pos[ 1 ] = rvertical.test( pos[ 1 ] ) ? pos[ 1 ] : "center";
+
+            // Calculate offsets
+            horizontalOffset = roffset.exec( pos[ 0 ] );
+            verticalOffset = roffset.exec( pos[ 1 ] );
+            offsets[ this ] = [
+                horizontalOffset ? horizontalOffset[ 0 ] : 0,
+                verticalOffset ? verticalOffset[ 0 ] : 0
+            ];
+
+            // Reduce to just the positions without the offsets
+            options[ this ] = [
+                rposition.exec( pos[ 0 ] )[ 0 ],
+                rposition.exec( pos[ 1 ] )[ 0 ]
+            ];
+        } );
+
+        // Normalize collision option
+        if ( collision.length === 1 ) {
+            collision[ 1 ] = collision[ 0 ];
+        }
+
+        if ( options.at[ 0 ] === "right" ) {
+            basePosition.left += targetWidth;
+        } else if ( options.at[ 0 ] === "center" ) {
+            basePosition.left += targetWidth / 2;
+        }
+
+        if ( options.at[ 1 ] === "bottom" ) {
+            basePosition.top += targetHeight;
+        } else if ( options.at[ 1 ] === "center" ) {
+            basePosition.top += targetHeight / 2;
+        }
+
+        atOffset = getOffsets( offsets.at, targetWidth, targetHeight );
+        basePosition.left += atOffset[ 0 ];
+        basePosition.top += atOffset[ 1 ];
+
+        return ( function(elem) {
+            var collisionPosition, using,
+                msize = geom.marginSize(elem),
+                elemWidth = msize.width,
+                elemHeight = msize.height,
+                marginLeft = parseCss( elem, "marginLeft" ),
+                marginTop = parseCss( elem, "marginTop" ),
+                collisionWidth = elemWidth + marginLeft + parseCss( elem, "marginRight" ) +
+                    scrollInfo.width,
+                collisionHeight = elemHeight + marginTop + parseCss( elem, "marginBottom" ) +
+                    scrollInfo.height,
+                position = langx.extend( {}, basePosition ),
+                myOffset = getOffsets( offsets.my, msize.width, msize.height);
+
+            if ( options.my[ 0 ] === "right" ) {
+                position.left -= elemWidth;
+            } else if ( options.my[ 0 ] === "center" ) {
+                position.left -= elemWidth / 2;
+            }
+
+            if ( options.my[ 1 ] === "bottom" ) {
+                position.top -= elemHeight;
+            } else if ( options.my[ 1 ] === "center" ) {
+                position.top -= elemHeight / 2;
+            }
+
+            position.left += myOffset[ 0 ];
+            position.top += myOffset[ 1 ];
+
+            collisionPosition = {
+                marginLeft: marginLeft,
+                marginTop: marginTop
+            };
+
+            langx.each( [ "left", "top" ], function( i, dir ) {
+                if ( positions[ collision[ i ] ] ) {
+                    positions[ collision[ i ] ][ dir ]( position, {
+                        targetWidth: targetWidth,
+                        targetHeight: targetHeight,
+                        elemWidth: elemWidth,
+                        elemHeight: elemHeight,
+                        collisionPosition: collisionPosition,
+                        collisionWidth: collisionWidth,
+                        collisionHeight: collisionHeight,
+                        offset: [ atOffset[ 0 ] + myOffset[ 0 ], atOffset [ 1 ] + myOffset[ 1 ] ],
+                        my: options.my,
+                        at: options.at,
+                        within: within,
+                        elem: elem
+                    } );
+                }
+            } );
+
+            if ( options.using ) {
+
+                // Adds feedback as second argument to using callback, if present
+                using = function( props ) {
+                    var left = targetOffset.left - position.left,
+                        right = left + targetWidth - elemWidth,
+                        top = targetOffset.top - position.top,
+                        bottom = top + targetHeight - elemHeight,
+                        feedback = {
+                            target: {
+                                element: target,
+                                left: targetOffset.left,
+                                top: targetOffset.top,
+                                width: targetWidth,
+                                height: targetHeight
+                            },
+                            element: {
+                                element: elem,
+                                left: position.left,
+                                top: position.top,
+                                width: elemWidth,
+                                height: elemHeight
+                            },
+                            horizontal: right < 0 ? "left" : left > 0 ? "right" : "center",
+                            vertical: bottom < 0 ? "top" : top > 0 ? "bottom" : "middle"
+                        };
+                    if ( targetWidth < elemWidth && abs( left + right ) < targetWidth ) {
+                        feedback.horizontal = "center";
+                    }
+                    if ( targetHeight < elemHeight && abs( top + bottom ) < targetHeight ) {
+                        feedback.vertical = "middle";
+                    }
+                    if ( max( abs( left ), abs( right ) ) > max( abs( top ), abs( bottom ) ) ) {
+                        feedback.important = "horizontal";
+                    } else {
+                        feedback.important = "vertical";
+                    }
+                    options.using.call( this, props, feedback );
+                };
+            }
+
+            geom.pagePosition(elem, langx.extend( position, { using: using } ));
+        })(elm);
+    }
+
+    var positions = {
+        fit: {
+            left: function( position, data ) {
+                var within = data.within,
+                    withinOffset = within.isWindow ? within.scrollLeft : within.offset.left,
+                    outerWidth = within.width,
+                    collisionPosLeft = position.left - data.collisionPosition.marginLeft,
+                    overLeft = withinOffset - collisionPosLeft,
+                    overRight = collisionPosLeft + data.collisionWidth - outerWidth - withinOffset,
+                    newOverRight;
+
+                // Element is wider than within
+                if ( data.collisionWidth > outerWidth ) {
+
+                    // Element is initially over the left side of within
+                    if ( overLeft > 0 && overRight <= 0 ) {
+                        newOverRight = position.left + overLeft + data.collisionWidth - outerWidth -
+                            withinOffset;
+                        position.left += overLeft - newOverRight;
+
+                    // Element is initially over right side of within
+                    } else if ( overRight > 0 && overLeft <= 0 ) {
+                        position.left = withinOffset;
+
+                    // Element is initially over both left and right sides of within
+                    } else {
+                        if ( overLeft > overRight ) {
+                            position.left = withinOffset + outerWidth - data.collisionWidth;
+                        } else {
+                            position.left = withinOffset;
+                        }
+                    }
+
+                // Too far left -> align with left edge
+                } else if ( overLeft > 0 ) {
+                    position.left += overLeft;
+
+                // Too far right -> align with right edge
+                } else if ( overRight > 0 ) {
+                    position.left -= overRight;
+
+                // Adjust based on position and margin
+                } else {
+                    position.left = max( position.left - collisionPosLeft, position.left );
+                }
+            },
+            top: function( position, data ) {
+                var within = data.within,
+                    withinOffset = within.isWindow ? within.scrollTop : within.offset.top,
+                    outerHeight = data.within.height,
+                    collisionPosTop = position.top - data.collisionPosition.marginTop,
+                    overTop = withinOffset - collisionPosTop,
+                    overBottom = collisionPosTop + data.collisionHeight - outerHeight - withinOffset,
+                    newOverBottom;
+
+                // Element is taller than within
+                if ( data.collisionHeight > outerHeight ) {
+
+                    // Element is initially over the top of within
+                    if ( overTop > 0 && overBottom <= 0 ) {
+                        newOverBottom = position.top + overTop + data.collisionHeight - outerHeight -
+                            withinOffset;
+                        position.top += overTop - newOverBottom;
+
+                    // Element is initially over bottom of within
+                    } else if ( overBottom > 0 && overTop <= 0 ) {
+                        position.top = withinOffset;
+
+                    // Element is initially over both top and bottom of within
+                    } else {
+                        if ( overTop > overBottom ) {
+                            position.top = withinOffset + outerHeight - data.collisionHeight;
+                        } else {
+                            position.top = withinOffset;
+                        }
+                    }
+
+                // Too far up -> align with top
+                } else if ( overTop > 0 ) {
+                    position.top += overTop;
+
+                // Too far down -> align with bottom edge
+                } else if ( overBottom > 0 ) {
+                    position.top -= overBottom;
+
+                // Adjust based on position and margin
+                } else {
+                    position.top = max( position.top - collisionPosTop, position.top );
+                }
+            }
+        },
+        flip: {
+            left: function( position, data ) {
+                var within = data.within,
+                    withinOffset = within.offset.left + within.scrollLeft,
+                    outerWidth = within.width,
+                    offsetLeft = within.isWindow ? within.scrollLeft : within.offset.left,
+                    collisionPosLeft = position.left - data.collisionPosition.marginLeft,
+                    overLeft = collisionPosLeft - offsetLeft,
+                    overRight = collisionPosLeft + data.collisionWidth - outerWidth - offsetLeft,
+                    myOffset = data.my[ 0 ] === "left" ?
+                        -data.elemWidth :
+                        data.my[ 0 ] === "right" ?
+                            data.elemWidth :
+                            0,
+                    atOffset = data.at[ 0 ] === "left" ?
+                        data.targetWidth :
+                        data.at[ 0 ] === "right" ?
+                            -data.targetWidth :
+                            0,
+                    offset = -2 * data.offset[ 0 ],
+                    newOverRight,
+                    newOverLeft;
+
+                if ( overLeft < 0 ) {
+                    newOverRight = position.left + myOffset + atOffset + offset + data.collisionWidth -
+                        outerWidth - withinOffset;
+                    if ( newOverRight < 0 || newOverRight < abs( overLeft ) ) {
+                        position.left += myOffset + atOffset + offset;
+                    }
+                } else if ( overRight > 0 ) {
+                    newOverLeft = position.left - data.collisionPosition.marginLeft + myOffset +
+                        atOffset + offset - offsetLeft;
+                    if ( newOverLeft > 0 || abs( newOverLeft ) < overRight ) {
+                        position.left += myOffset + atOffset + offset;
+                    }
+                }
+            },
+            top: function( position, data ) {
+                var within = data.within,
+                    withinOffset = within.offset.top + within.scrollTop,
+                    outerHeight = within.height,
+                    offsetTop = within.isWindow ? within.scrollTop : within.offset.top,
+                    collisionPosTop = position.top - data.collisionPosition.marginTop,
+                    overTop = collisionPosTop - offsetTop,
+                    overBottom = collisionPosTop + data.collisionHeight - outerHeight - offsetTop,
+                    top = data.my[ 1 ] === "top",
+                    myOffset = top ?
+                        -data.elemHeight :
+                        data.my[ 1 ] === "bottom" ?
+                            data.elemHeight :
+                            0,
+                    atOffset = data.at[ 1 ] === "top" ?
+                        data.targetHeight :
+                        data.at[ 1 ] === "bottom" ?
+                            -data.targetHeight :
+                            0,
+                    offset = -2 * data.offset[ 1 ],
+                    newOverTop,
+                    newOverBottom;
+                if ( overTop < 0 ) {
+                    newOverBottom = position.top + myOffset + atOffset + offset + data.collisionHeight -
+                        outerHeight - withinOffset;
+                    if ( newOverBottom < 0 || newOverBottom < abs( overTop ) ) {
+                        position.top += myOffset + atOffset + offset;
+                    }
+                } else if ( overBottom > 0 ) {
+                    newOverTop = position.top - data.collisionPosition.marginTop + myOffset + atOffset +
+                        offset - offsetTop;
+                    if ( newOverTop > 0 || abs( newOverTop ) < overBottom ) {
+                        position.top += myOffset + atOffset + offset;
+                    }
+                }
+            }
+        },
+        flipfit: {
+            left: function() {
+                positions.flip.left.apply( this, arguments );
+                positions.fit.left.apply( this, arguments );
+            },
+            top: function() {
+                positions.flip.top.apply( this, arguments );
+                positions.fit.top.apply( this, arguments );
+            }
+        }
+    };
+
+    return geom.posit = posit;
+});
+define('skylark-domx-geom/scrollToTop',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "./geom"
+],function(langx,styler,geom) {
+    /*   
+     * Set the vertical position of the scroll bar for an element.
+     * @param {Object} elm  
+     * @param {Number or String} pos
+     * @param {Number or String} speed
+     * @param {Function} callback
+     */
+    function scrollToTop(elm, pos, speed, callback) {
+        var scrollFrom = parseInt(elm.scrollTop),
+            i = 0,
+            runEvery = 5, // run every 5ms
+            freq = speed * 1000 / runEvery,
+            scrollTo = parseInt(pos);
+
+        var interval = setInterval(function() {
+            i++;
+
+            if (i <= freq) elm.scrollTop = (scrollTo - scrollFrom) / freq * i + scrollFrom;
+
+            if (i >= freq + 1) {
+                clearInterval(interval);
+                if (callback) langx.debounce(callback, 1000)();
+            }
+        }, runEvery);
+
+        return this;
+    }
+
+    return geom.scrollToTop = scrollToTop;
+});
 define('skylark-domx-geom/main',[
     "skylark-langx/langx",
     "./geom",
     "skylark-domx-velm",
-    "skylark-domx-query"        
+    "skylark-domx-query",
+    "./posit",
+    "./scrollToTop"
 ],function(langx,geom,velm,$){
    // from ./geom
     velm.delegate([
@@ -17154,7 +17397,7 @@ define('skylark-domx-eventer/main',[
 });
 define('skylark-domx-eventer', ['skylark-domx-eventer/main'], function (main) { return main; });
 
-define('skylark-domx-animates/animate',[
+define('skylark-domx-animates/animation',[
     "skylark-langx/langx",
     "skylark-domx-browser",
     "skylark-domx-noder",
@@ -17164,42 +17407,32 @@ define('skylark-domx-animates/animate',[
     "./animates"
 ], function(langx, browser, noder, geom, styler, eventer,animates) {
 
-    var animationName,
-        animationDuration,
-        animationTiming,
-        animationDelay,
+    var animationName = animates.animationName,
+        animationDuration = animates.animationDuration,
+        animationTiming = animates.animationTiming,
+        animationDelay = animates.animationDelay,
 
-        animationEnd = browser.normalizeCssEvent('AnimationEnd'),
+        animationEnd = animates.animationEnd,
 
         cssReset = {};
 
 
-    cssReset[animationName = browser.normalizeCssProperty("animation-name")] =
-        cssReset[animationDuration = browser.normalizeCssProperty("animation-duration")] =
-        cssReset[animationDelay = browser.normalizeCssProperty("animation-delay")] =
-        cssReset[animationTiming = browser.normalizeCssProperty("animation-timing-function")] = "";
+    cssReset[animationName] =
+        cssReset[animationDuration] =
+        cssReset[animationDelay] =
+        cssReset[animationTiming] = "";
 
     /*   
-     * Perform a custom animation of a set of CSS properties.
+     * Perform a custom animation.
      * @param {Object} elm  
-     * @param {Number or String} properties
+     * @param {String} name
      * @param {String} ease
      * @param {Number or String} duration
      * @param {Function} callback
      * @param {Number or String} delay
      */
-    function animate(elm, name, duration, ease, callback, delay) {
-        var key,
-            cssValues = {},
-            cssProperties = [],
-            transforms = "",
-            that = this,
-            endEvent,
-            wrappedCallback,
-            fired = false,
-            hasScrollTop = false,
-            resetClipAuto = false;
-
+    function animation(elm, name, duration, ease, callback, delay) {
+        var cssValues = {};
         if (langx.isPlainObject(duration)) {
             ease = duration.easing;
             callback = duration.complete;
@@ -17214,9 +17447,6 @@ define('skylark-domx-animates/animate',[
             duration = animates.speeds.normal;
         }
         duration = duration / 1000;
-        if (animates.off) {
-            duration = 0;
-        }
 
         if (langx.isFunction(ease)) {
             callback = ease;
@@ -17230,79 +17460,14 @@ define('skylark-domx-animates/animate',[
         } else {
             delay = 0;
         }
+        // keyframe animation
+        cssValues[animationName] = name;
+        cssValues[animationDuration] = duration + "s";
+        cssValues[animationTiming] = ease;
 
-        if (langx.isString(properties)) {
-            // keyframe animation
-            cssValues[animationName] = properties;
-            cssValues[animationDuration] = duration + "s";
-            cssValues[animationTiming] = ease;
-            endEvent = animationEnd;
-        } else {
-            // CSS transitions
-            for (key in properties) {
-                var v = properties[key];
-                if (supportedTransforms.test(key)) {
-                    transforms += key + "(" + v + ") ";
-                } else {
-                    if (key === "scrollTop") {
-                        hasScrollTop = true;
-                    }
-                    if (key == "clip" && langx.isPlainObject(v)) {
-                        cssValues[key] = "rect(" + v.top+"px,"+ v.right +"px,"+ v.bottom +"px,"+ v.left+"px)";
-                        if (styler.css(elm,"clip") == "auto") {
-                            var size = geom.size(elm);
-                            styler.css(elm,"clip","rect("+"0px,"+ size.width +"px,"+ size.height +"px,"+"0px)");  
-                            resetClipAuto = true;
-                        }
-
-                    } else {
-                        cssValues[key] = v;
-                    }
-                    cssProperties.push(langx.dasherize(key));
-                }
-            }
-            endEvent = transitionEnd;
-        }
-
-        if (transforms) {
-            cssValues[transform] = transforms;
-            cssProperties.push(transform);
-        }
-
-        if (duration > 0 && langx.isPlainObject(properties)) {
-            cssValues[transitionProperty] = cssProperties.join(", ");
-            cssValues[transitionDuration] = duration + "s";
-            cssValues[transitionDelay] = delay + "s";
-            cssValues[transitionTiming] = ease;
-        }
-
-        wrappedCallback = function(event) {
-            fired = true;
-            if (event) {
-                if (event.target !== event.currentTarget) {
-                    return // makes sure the event didn't bubble from "below"
-                }
-                eventer.off(event.target, endEvent, wrappedCallback)
-            } else {
-                eventer.off(elm, animationEnd, wrappedCallback) // triggered by setTimeout
-            }
-            styler.css(elm, cssReset);
-            if (resetClipAuto) {
- //               styler.css(elm,"clip","auto");
-            }
-            callback && callback.call(this);
-        };
 
         if (duration > 0) {
-            eventer.on(elm, endEvent, wrappedCallback);
-            // transitionEnd is not always firing on older Android phones
-            // so make sure it gets fired
-            langx.debounce(function() {
-                if (fired) {
-                    return;
-                }
-                wrappedCallback.call(that);
-            }, ((duration + delay) * 1000) + 25)();
+            eventer.on(elm, animationEnd, callback);
         }
 
         // trigger page reflow so new elements can animate
@@ -17310,27 +17475,36 @@ define('skylark-domx-animates/animate',[
 
         styler.css(elm, cssValues);
 
-        if (duration <= 0) {
-            langx.debounce(function() {
-                if (fired) {
-                    return;
-                }
-                wrappedCallback.call(that);
-            }, 0)();
-        }
-
-        if (hasScrollTop) {
-            scrollToTop(elm, properties["scrollTop"], duration, callback);
-        }
-
         return this;
     }
 
-    return animates.animate = animate;
+    return animates.animation = animation;
 
+});
+define('skylark-domx-animates/animate',[
+    "skylark-langx/langx",
+    "skylark-domx-styler",
+    "skylark-domx-eventer",
+    "./animates"
+], function(langx, styler, eventer,animates) {
+
+
+    function animate(elm,className) {
+        if (animates.animateBaseClass) {
+          className = animates.animateBaseClass + " " + className;
+        }
+        styler.addClass(elm,className);
+        eventer.one(elm,animates.animationEnd, function() {
+            styler.removeClass(elm,className);
+        });
+        return this;
+    }
+    
+    return animates.animate = animate;
 });
 define('skylark-domx-animates/main',[
 	"./animates",
+    "./animation",
     "./animate"
 ],function(animates){
 
@@ -17747,1816 +17921,6 @@ define('skylark-domx-fx/fx',[
 
     return skylark.attach("domx.fx", fx);
 });
-define('skylark-domx-fx/animate',[
-    "skylark-langx/langx",
-    "skylark-domx-browser",
-    "skylark-domx-noder",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
-    "skylark-domx-eventer",
-    "./fx"
-], function(langx, browser, noder, geom, styler, eventer,fx) {
-
-    var animationName,
-        animationDuration,
-        animationTiming,
-        animationDelay,
-        transitionProperty,
-        transitionDuration,
-        transitionTiming,
-        transitionDelay,
-
-        animationEnd = browser.normalizeCssEvent('AnimationEnd'),
-        transitionEnd = browser.normalizeCssEvent('TransitionEnd'),
-
-        supportedTransforms = /^((translate|rotate|scale)(X|Y|Z|3d)?|matrix(3d)?|perspective|skew(X|Y)?)$/i,
-        transform = browser.css3PropPrefix + "transform",
-        cssReset = {};
-
-
-    cssReset[animationName = browser.normalizeCssProperty("animation-name")] =
-        cssReset[animationDuration = browser.normalizeCssProperty("animation-duration")] =
-        cssReset[animationDelay = browser.normalizeCssProperty("animation-delay")] =
-        cssReset[animationTiming = browser.normalizeCssProperty("animation-timing-function")] = "";
-
-    cssReset[transitionProperty = browser.normalizeCssProperty("transition-property")] =
-        cssReset[transitionDuration = browser.normalizeCssProperty("transition-duration")] =
-        cssReset[transitionDelay = browser.normalizeCssProperty("transition-delay")] =
-        cssReset[transitionTiming = browser.normalizeCssProperty("transition-timing-function")] = "";
-
-    /*   
-     * Perform a custom animation of a set of CSS properties.
-     * @param {Object} elm  
-     * @param {Number or String} properties
-     * @param {String} ease
-     * @param {Number or String} duration
-     * @param {Function} callback
-     * @param {Number or String} delay
-     */
-    function animate(elm, properties, duration, ease, callback, delay) {
-        var key,
-            cssValues = {},
-            cssProperties = [],
-            transforms = "",
-            that = this,
-            endEvent,
-            wrappedCallback,
-            fired = false,
-            hasScrollTop = false,
-            resetClipAuto = false;
-
-        if (langx.isPlainObject(duration)) {
-            ease = duration.easing;
-            callback = duration.complete;
-            delay = duration.delay;
-            duration = duration.duration;
-        }
-
-        if (langx.isString(duration)) {
-            duration = fx.speeds[duration];
-        }
-        if (duration === undefined) {
-            duration = fx.speeds.normal;
-        }
-        duration = duration / 1000;
-        if (fx.off) {
-            duration = 0;
-        }
-
-        if (langx.isFunction(ease)) {
-            callback = ease;
-            eace = "swing";
-        } else {
-            ease = ease || "swing";
-        }
-
-        if (delay) {
-            delay = delay / 1000;
-        } else {
-            delay = 0;
-        }
-
-        if (langx.isString(properties)) {
-            // keyframe animation
-            cssValues[animationName] = properties;
-            cssValues[animationDuration] = duration + "s";
-            cssValues[animationTiming] = ease;
-            endEvent = animationEnd;
-        } else {
-            // CSS transitions
-            for (key in properties) {
-                var v = properties[key];
-                if (supportedTransforms.test(key)) {
-                    transforms += key + "(" + v + ") ";
-                } else {
-                    if (key === "scrollTop") {
-                        hasScrollTop = true;
-                    }
-                    if (key == "clip" && langx.isPlainObject(v)) {
-                        cssValues[key] = "rect(" + v.top+"px,"+ v.right +"px,"+ v.bottom +"px,"+ v.left+"px)";
-                        if (styler.css(elm,"clip") == "auto") {
-                            var size = geom.size(elm);
-                            styler.css(elm,"clip","rect("+"0px,"+ size.width +"px,"+ size.height +"px,"+"0px)");  
-                            resetClipAuto = true;
-                        }
-
-                    } else {
-                        cssValues[key] = v;
-                    }
-                    cssProperties.push(langx.dasherize(key));
-                }
-            }
-            endEvent = transitionEnd;
-        }
-
-        if (transforms) {
-            cssValues[transform] = transforms;
-            cssProperties.push(transform);
-        }
-
-        if (duration > 0 && langx.isPlainObject(properties)) {
-            cssValues[transitionProperty] = cssProperties.join(", ");
-            cssValues[transitionDuration] = duration + "s";
-            cssValues[transitionDelay] = delay + "s";
-            cssValues[transitionTiming] = ease;
-        }
-
-        wrappedCallback = function(event) {
-            fired = true;
-            if (event) {
-                if (event.target !== event.currentTarget) {
-                    return // makes sure the event didn't bubble from "below"
-                }
-                eventer.off(event.target, endEvent, wrappedCallback)
-            } else {
-                eventer.off(elm, animationEnd, wrappedCallback) // triggered by setTimeout
-            }
-            styler.css(elm, cssReset);
-            if (resetClipAuto) {
- //               styler.css(elm,"clip","auto");
-            }
-            callback && callback.call(this);
-        };
-
-        if (duration > 0) {
-            eventer.on(elm, endEvent, wrappedCallback);
-            // transitionEnd is not always firing on older Android phones
-            // so make sure it gets fired
-            langx.debounce(function() {
-                if (fired) {
-                    return;
-                }
-                wrappedCallback.call(that);
-            }, ((duration + delay) * 1000) + 25)();
-        }
-
-        // trigger page reflow so new elements can animate
-        elm.clientLeft;
-
-        styler.css(elm, cssValues);
-
-        if (duration <= 0) {
-            langx.debounce(function() {
-                if (fired) {
-                    return;
-                }
-                wrappedCallback.call(that);
-            }, 0)();
-        }
-
-        if (hasScrollTop) {
-            scrollToTop(elm, properties["scrollTop"], duration, callback);
-        }
-
-        return this;
-    }
-
-    return fx.animate = animate;
-
-});
-define('skylark-domx-fx/bounce',[
-    "skylark-langx/langx",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,geom,styler,fx,animate) {
-
-    function bounce(elm, options, done ) {
-        var upAnim, downAnim, refValue,
-            // Defaults:
-            mode = options.mode,
-            hide = mode === "hide",
-            show = mode === "show",
-            direction = options.direction || "up",
-            start,
-            distance = options.distance,
-            times = options.times || 5,
-
-            // Number of internal animations
-            anims = times * 2 + ( show || hide ? 1 : 0 ),
-            speed = options.duration / anims,
-            easing = options.easing,
-
-            // Utility:
-            ref = ( direction === "up" || direction === "down" ) ? "top" : "left",
-            motion = ( direction === "up" || direction === "left" ),
-            i = 0;
-
-        //createPlaceholder(elm);
-
-        var Deferred = langx.Deferred;
-        var funcs = [];
-
-        refValue = styler.css(elm,ref );
-
-        // Default distance for the BIGGEST bounce is the outer Distance / 3
-        if ( !distance ) {
-            var msize = geom.size(elm);
-            distance = (ref === "top" ? msize.height : msize.width) / 3;
-        }
-
-        start = geom.relativePosition(elm)[ref];
-
-        if ( show ) {
-            downAnim = { opacity: 1 };
-            downAnim[ ref ] = refValue;
-
-            // If we are showing, force opacity 0 and set the initial position
-            // then do the "first" animation
-            styler.css(elm, "opacity", 0 );
-            styler.css(elm, ref, start + (motion ? -distance * 2 : distance * 2 ));
-
-            funcs.push(doAnimate(elm,downAnim, speed, easing));
-        }
-
-        // Start at the smallest distance if we are hiding
-        if ( hide ) {
-            distance = distance / Math.pow( 2, times - 1 );
-        }
-
-        downAnim = {};
-        downAnim[ ref ] = refValue;
-
-
-        function doAnimate(elm,properties, duration, easing) {
-            return function() {
-                var d = new Deferred();
-
-                animate(elm,properties, duration, easing ,function(){
-                    d.resolve();
-                });
-                return d.promise;
-
-            }
-        }
-
-        // Bounces up/down/left/right then back to 0 -- times * 2 animations happen here
-        for ( ; i < times; i++ ) {
-            upAnim = {};
-            upAnim[ ref ] = start + ( motion ? -distance : distance) ;
-
-            funcs.push(doAnimate(elm,upAnim, speed, easing));
-
-            funcs.push(doAnimate(elm,downAnim, speed, easing));
-
-            distance = hide ? distance * 2 : distance / 2;
-        }
-
-        // Last Bounce when Hiding
-        if ( hide ) {
-            upAnim = { opacity: 0 };
-            upAnim[ ref ] = start + ( motion ? -1 * distance : distance) ;
-
-            funcs.push(doAnimate(elm,upAnim, speed, easing ));
-        }
-
-        funcs.push(done);
-        funcs.reduce(function(prev, curr, index, array) {
-            return prev.then(curr);
-        }, Deferred.resolve());
-
-        return this;
-    } 
-
-    return fx.bounce = bounce;
-});
-define('skylark-domx-fx/emulateTransitionEnd',[
-    "skylark-langx/langx",
-    "skylark-domx-browser",
-    "skylark-domx-eventer",
-    "./fx"
-],function(langx,browser,eventer,fx) {
-    
-    function emulateTransitionEnd(elm,duration) {
-        var called = false;
-        eventer.one(elm,'transitionEnd', function () { 
-            called = true;
-        })
-        var callback = function () { 
-            if (!called) {
-                eventer.trigger(elm,browser.support.transition.end) 
-            }
-        };
-        setTimeout(callback, duration);
-        
-        return this;
-    } 
-
-
-
-    return fx.emulateTransitionEnd = emulateTransitionEnd;
-});
-define('skylark-domx-fx/show',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,styler,fx,animate) {
-    /*   
-     * Display an element.
-     * @param {Object} elm  
-     * @param {String} speed
-     * @param {Function} callback
-     */
-    function show(elm, speed, callback) {
-        styler.show(elm);
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
-            }
-            styler.css(elm, "opacity", 0)
-            animate(elm, { opacity: 1, scale: "1,1" }, speed, callback);
-        }
-        return this;
-    }
-
-    return fx.show = show;
-});
-define('skylark-domx-fx/hide',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,styler,fx,animate) {
-    /*   
-     * Hide an element.
-     * @param {Object} elm  
-     * @param {String} speed
-     * @param {Function} callback
-     */
-    function hide(elm, speed, callback) {
-        if (speed) {
-            if (!callback && langx.isFunction(speed)) {
-                callback = speed;
-                speed = "normal";
-            }
-            animate(elm, { opacity: 0, scale: "0,0" }, speed, function() {
-                styler.hide(elm);
-                if (callback) {
-                    callback.call(elm);
-                }
-            });
-        } else {
-            styler.hide(elm);
-        }
-        return this;
-    }
-
-    return fx.hide = hide;
-});
-define('skylark-domx-fx/explode',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "skylark-domx-geom",
-    "skylark-domx-noder",
-    "skylark-domx-query",
-    "./fx",
-    "./animate",
-    "./show",
-    "./hide"
-],function(langx,styler,geom,noder,$,fx,animate,show,hide) {
-
-    function explode( elm,options, done ) {
-
-		// Show and then visibility:hidden the element before calculating offset
-		styler.show(elm);
-		styler.css(elm, "visibility", "hidden" );
-
-		var i, j, left, top, mx, my,
-			rows = options.pieces ? Math.round( Math.sqrt( options.pieces ) ) : 3,
-			cells = rows,
-			mode = options.mode,
-			show = mode === "show",
-			offset = geom.pagePosition(elm),
-
-			// Width and height of a piece
-			size = geom.marginSize(elm),
-			width = Math.ceil( size.width / cells ),
-			height = Math.ceil( size.height / rows ),
-			pieces = [];
-
-		// Children animate complete:
-		function childComplete() {
-			pieces.push( this );
-			if ( pieces.length === rows * cells ) {
-				animComplete();
-			}
-		}
-
-		// Clone the element for each row and cell.
-		for ( var i = 0; i < rows; i++ ) { // ===>
-			top = offset.top + i * height;
-			my = i - ( rows - 1 ) / 2;
-
-			for ( j = 0; j < cells; j++ ) { // |||
-				left = offset.left + j * width;
-				mx = j - ( cells - 1 ) / 2;
-
-				// Create a clone of the now hidden main element that will be absolute positioned
-				// within a wrapper div off the -left and -top equal to size of our pieces
-				$(elm)
-					.clone()
-					.appendTo( "body" )
-					.wrap( "<div></div>" )
-					.css( {
-						position: "absolute",
-						visibility: "visible",
-						left: -j * width,
-						top: -i * height
-					} )
-
-					// Select the wrapper - make it overflow: hidden and absolute positioned based on
-					// where the original was located +left and +top equal to the size of pieces
-					.parent()
-						.addClass( options.explodeClass || "ui-effects-explode" )
-						.css( {
-							position: "absolute",
-							overflow: "hidden",
-							width: width,
-							height: height,
-							left: left + ( show ? mx * width : 0 ),
-							top: top + ( show ? my * height : 0 ),
-							opacity: show ? 0 : 1
-						} )
-						.animate( {
-							left: left + ( show ? 0 : mx * width ),
-							top: top + ( show ? 0 : my * height ),
-							opacity: show ? 1 : 0
-						}, options.duration || 500, options.easing, childComplete );
-			}
-		}
-
-		function animComplete() {
-			styler.css(elm, {
-				visibility: "visible"
-			} );
-			$( pieces ).remove();
-			done();
-		}
-
-		return this;
-	}
-
-
-	return fx.explode = explode;
-});
-
-define('skylark-domx-fx/fade',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,styler,fx,animate) {
-    /*   
-     * Adjust the opacity of an element.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {Number or String} opacity
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fade(elm, opacity,options, callback) {
-        if (langx.isFunction(options)) {
-            callback = options;
-            options = {};
-        }
-        options = options || {};
-        
-        animate(elm, { opacity: opacity }, options.duration, options.easing, callback);
-        return this;
-    }
-
-
-    return fx.fade = fade;
-});
-define('skylark-domx-fx/fadeIn',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./fade"
-],function(langx,styler,fx,fadeTo) {
-    /*   
-     * Display an element by fading them to opaque.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeIn(elm, options, callback) {
-        var target = styler.css(elm, "opacity");
-        if (target > 0) {
-            styler.css(elm, "opacity", 0);
-        } else {
-            target = 1;
-        }
-        styler.show(elm);
-
-        fadeTo(elm,  target,options, callback);
-
-        return this;
-    }
-
-
-    return fx.fadeIn = fadeIn;
-});
-define('skylark-domx-fx/fadeOut',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./fade"
-],function(langx,styler,fx,fadeTo) {
-    /*   
-     * Hide an element by fading them to transparent.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {String} easing
-     * @param {Function} callback
-     */
-    function fadeOut(elm, options, callback) {
-
-        function complete() {
-            styler.css(elm,"opacity",opacity);
-            styler.hide(elm);
-            if (callback) {
-                callback.call(elm);
-            }
-        }
-
-        fadeTo(elm, 0,options,callback);
-
-        return this;
-    }
-
-    return fx.fadeOut = fadeOut;
-});
-define('skylark-domx-fx/fadeToggle',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./fadeIn",
-    "./fadeOut"
-],function(langx,styler,fx,fadeIn,fadeOut) {
-
-    /*   
-     * Display or hide an element by animating its opacity.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {String} ceasing
-     * @param {Function} callback
-     */
-    function fadeToggle(elm, speed, easing, callback) {
-        if (styler.isInvisible(elm)) {
-            fadeIn(elm, speed, easing, callback);
-        } else {
-            fadeOut(elm, speed, easing, callback);
-        }
-        return this;
-    }
-
-
-    return fx.fadeToggle = fadeToggle;
-});
-define('skylark-domx-fx/pulsate',[
-    "skylark-langx/langx",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,geom,styler,fx,animate) {
-
-	function pulsate(elm, options, done ) {
-		var 
-			mode = options.mode,
-			show = mode === "show" || !mode,
-			hide = mode === "hide",
-			showhide = show || hide,
-
-			// Showing or hiding leaves off the "last" animation
-			anims = ( ( options.times || 5 ) * 2 ) + ( showhide ? 1 : 0 ),
-			duration = options.duration / anims,
-			animateTo = 0,
-			i = 1;
-
-		if ( show || styler.isInvisible(elm) ) {
-			styler.css(elm, "opacity", 0 );
-			styler.show(elm);
-			animateTo = 1;
-		}
-
-		// Anims - 1 opacity "toggles"
-
-		var Deferred = langx.Deferred;
-		var funcs = [];
-
-		function doAnimate(elm,properties, duration, ease) {
-			return function() {
-				var d = new Deferred();
-
-				animate( elm,properties, duration, ease ,function(){
-					d.resolve();
-				});
-				return d.promise;
-
-			}
-		}
-
-
-		for ( ; i < anims; i++ ) {
-			funcs.push(doAnimate(elm,{ opacity: animateTo }, duration, options.easing ));
-			animateTo = 1 - animateTo;
-		}
-
-	    funcs.push(doAnimate(elm,{ opacity: animateTo }, duration, options.easing ));
-
-		funcs.push(done);
-		funcs.reduce(function(prev, curr, index, array) {
-	  		return prev.then(curr);
-		}, Deferred.resolve());
-
-		return this;
-
-	}
-
-	return fx.pulsate = pulsate;
-
-});
-
-define('skylark-domx-fx/shake',[
-    "skylark-langx/langx",
-    "skylark-domx-geom",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,geom,styler,fx,animate) {
-	function shake(elm, options, done ) {
-
-		var i = 1,
-			direction = options.direction || "left",
-			distance = options.distance || 20,
-			times = options.times || 3,
-			anims = times * 2 + 1,
-			speed = Math.round( options.duration / anims ),
-			ref = ( direction === "up" || direction === "down" ) ? "top" : "left",
-			positiveMotion = ( direction === "up" || direction === "left" ),
-			animation0 = {},
-			animation = {},
-			animation1 = {},
-			animation2 = {};
-
-		var Deferred = langx.Deferred;
-			start = geom.relativePosition(elm)[ref],
-			funcs = [];
-
-		function doAnimate(elm,properties, duration, ease) {
-			return function() {
-				var d = new Deferred();
-
-				animate(elm, properties, duration, ease ,function(){
-					d.resolve();
-				});
-				return d.promise;
-			}
-		}
-
-		// Animation
-		animation0[ ref ] = start;
-		animation[ ref ] = start + ( positiveMotion ? -1 : 1 ) * distance;
-		animation1[ ref ] = animation[ ref ] + ( positiveMotion ? 1 : -1 ) * distance * 2;
-		animation2[ ref ] = animation1[ ref ] + ( positiveMotion ? -1 : 1 ) * distance * 2;
-
-		// Animate
-	    funcs.push(doAnimate(elm,animation, speed, options.easing ));
-
-		// Shakes
-		for ( ; i < times; i++ ) {
-		    funcs.push(doAnimate(elm,animation1, speed, options.easing ));
-		    funcs.push(doAnimate(elm,animation2, speed, options.easing ));
-		}
-
-	    funcs.push(doAnimate(elm,animation0, speed /2 , options.easing ));
-
-		funcs.push(done);
-		funcs.reduce(function(prev, curr, index, array) {
-	  		return prev.then(curr);
-		}, Deferred.resolve());
-
-		return this;
-	}
-
-	return fx.shake = shake;
-
-});
-
-define('skylark-domx-fx/slide',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./animate"
-],function(langx,styler,fx,animate) {
-
-    function slide(elm,options,callback ) {
-    	if (langx.isFunction(options)) {
-    		callback = options;
-    		options = {};
-    	}
-    	options = options || {};
-		var direction = options.direction || "down",
-			isHide = ( direction === "up" || direction === "left" ),
-			isVert = ( direction === "up" || direction === "down" ),
-			duration = options.duration || fx.speeds.normal;
-
-
-        // get the element position to restore it then
-        var position = styler.css(elm, 'position');
-
-        if (isHide) {
-            // active the function only if the element is visible
-        	if (styler.isInvisible(elm)) {
-        		return this;
-        	}
-        } else {
-	        // show element if it is hidden
-	        styler.show(elm);        	
-	        // place it so it displays as usually but hidden
-	        styler.css(elm, {
-	            position: 'absolute',
-	            visibility: 'hidden'
-	        });
-        }
-
-
-
-        if (isVert) { // up--down
-	        // get naturally height, margin, padding
-	        var marginTop = styler.css(elm, 'margin-top');
-	        var marginBottom = styler.css(elm, 'margin-bottom');
-	        var paddingTop = styler.css(elm, 'padding-top');
-	        var paddingBottom = styler.css(elm, 'padding-bottom');
-	        var height = styler.css(elm, 'height');
-
-	        if (isHide) {  	// slideup
-	            // set initial css for animation
-	            styler.css(elm, {
-	                visibility: 'visible',
-	                overflow: 'hidden',
-	                height: height,
-	                marginTop: marginTop,
-	                marginBottom: marginBottom,
-	                paddingTop: paddingTop,
-	                paddingBottom: paddingBottom
-	            });
-
-	            // animate element height, margin and padding to zero
-	            animate(elm, {
-	                height: 0,
-	                marginTop: 0,
-	                marginBottom: 0,
-	                paddingTop: 0,
-	                paddingBottom: 0
-	            }, {
-	                // callback : restore the element position, height, margin and padding to original values
-	                duration: duration,
-	                queue: false,
-	                complete: function() {
-	                    styler.hide(elm);
-	                    styler.css(elm, {
-	                        visibility: 'visible',
-	                        overflow: 'hidden',
-	                        height: height,
-	                        marginTop: marginTop,
-	                        marginBottom: marginBottom,
-	                        paddingTop: paddingTop,
-	                        paddingBottom: paddingBottom
-	                    });
-	                    if (callback) {
-	                        callback.apply(elm);
-	                    }
-	                }
-	            });
-	        } else {     	// slidedown
-		        // set initial css for animation
-		        styler.css(elm, {
-		            position: position,
-		            visibility: 'visible',
-		            overflow: 'hidden',
-		            height: 0,
-		            marginTop: 0,
-		            marginBottom: 0,
-		            paddingTop: 0,
-		            paddingBottom: 0
-		        });
-
-		        // animate to gotten height, margin and padding
-		        animate(elm, {
-		            height: height,
-		            marginTop: marginTop,
-		            marginBottom: marginBottom,
-		            paddingTop: paddingTop,
-		            paddingBottom: paddingBottom
-		        }, {
-		            duration: duration,
-		            complete: function() {
-		                if (callback) {
-		                    callback.apply(elm);
-		                }
-		            }
-		        });
-
-	        }
-
-        } else { // left--right
-	        // get naturally height, margin, padding
-	        var marginLeft = styler.css(elm, 'margin-left');
-	        var marginRight = styler.css(elm, 'margin-right');
-	        var paddingLeft = styler.css(elm, 'padding-left');
-	        var paddingRight = styler.css(elm, 'padding-right');
-	        var width = styler.css(elm, 'width');
-
-	        if (isHide) {  	// slideleft
-	            // set initial css for animation
-	            styler.css(elm, {
-	                visibility: 'visible',
-	                overflow: 'hidden',
-	                width: width,
-	                marginLeft: marginLeft,
-	                marginRight: marginRight,
-	                paddingLeft: paddingLeft,
-	                paddingRight: paddingRight
-	            });
-
-	            // animate element height, margin and padding to zero
-	            animate(elm, {
-	                width: 0,
-	                marginLeft: 0,
-	                marginRight: 0,
-	                paddingLeft: 0,
-	                paddingRight: 0
-	            }, {
-	                // callback : restore the element position, height, margin and padding to original values
-	                duration: duration,
-	                queue: false,
-	                complete: function() {
-	                    styler.hide(elm);
-	                    styler.css(elm, {
-	                        visibility: 'visible',
-	                        overflow: 'hidden',
-	                        width: width,
-	                        marginLeft: marginLeft,
-	                        marginRight: marginRight,
-	                        paddingLeft: paddingLeft,
-	                        paddingRight: paddingRight
-	                    });
-	                    if (callback) {
-	                        callback.apply(elm);
-	                    }
-	                }
-	            });
-	        } else {     	// slideright
-		        // set initial css for animation
-		        styler.css(elm, {
-		            position: position,
-		            visibility: 'visible',
-		            overflow: 'hidden',
-		            width: 0,
-		            marginLeft: 0,
-		            marginRight: 0,
-		            paddingLeft: 0,
-		            paddingRight: 0
-		        });
-
-		        // animate to gotten width, margin and padding
-		        animate(elm, {
-		            width: width,
-		            marginLeft: marginLeft,
-		            marginRight: marginRight,
-		            paddingLeft: paddingLeft,
-		            paddingRight: paddingRight
-		        }, {
-		            duration: duration,
-		            complete: function() {
-		                if (callback) {
-		                    callback.apply(elm);
-		                }
-		            }
-		        });
-
-	        }       	
-        }
-
-        return this;
-    }
-
-    return fx.slide = slide;
-
-});
-
-define('skylark-domx-fx/slideDown',[
-    "./fx",
-    "./slide"
-],function(fx,slide) {
-    /*   
-     * Display an element with a sliding motion.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {Function} callback
-     */
-    function slideDown(elm, duration, callback) {
-        return slide(elm,{
-            direction : "down",
-            duration : duration
-        },callback);
-    }
-
-    return fx.slideDown = slideDown;
-});
-define('skylark-domx-fx/slideUp',[
-    "./fx",
-    "./slide"
-],function(fx,slide) {
-    /*   
-     * Hide an element with a sliding motion.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {Function} callback
-     */
-    function slideUp(elm, duration, callback) {
-        return slide(elm,{
-            direction : "up",
-            duration : duration
-        },callback);
-    }
-
-
-
-    return fx.slideUp = slideUp;
-});
-define('skylark-domx-fx/slideToggle',[
-    "skylark-langx/langx",
-    "skylark-domx-geom",
-    "./fx",
-    "./slideDown",
-    "./slideUp"
-],function(langx,geom,fx,slideDown,slideUp) {
-
-    /*   
-     * Display or hide an element with a sliding motion.
-     * @param {Object} elm  
-     * @param {Number or String} duration
-     * @param {Function} callback
-     */
-    function slideToggle(elm, duration, callback) {
-
-        // if the element is hidden, slideDown !
-        if (geom.height(elm) == 0) {
-            slideDown(elm, duration, callback);
-        }
-        // if the element is visible, slideUp !
-        else {
-            slideUp(elm, duration, callback);
-        }
-        return this;
-    }
-
-    return fx.slideToggle = slideToggle;
-});
-define('skylark-domx-fx/throb',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "skylark-domx-noder",
-    "./fx",
-    "./animate"
-],function(langx,styler,noder,fx,animate) {
-
-    
-    /*   
-     * Replace an old node with the specified node.
-     * @param {HTMLElement} elm
-     * @param {Node} params
-     */
-    function throb(elm, params) {
-        params = params || {};
-
-        var self = this,
-            text = params.text,
-            style = params.style,
-            time = params.time,
-            callback = params.callback,
-            timer,
-
-            throbber = noder.createElement("div", {
-                "class": params.className || "throbber"
-            }),
-            //_overlay = overlay(throbber, {
-            //    "class": 'overlay fade'
-            //}),
-            remove = function() {
-                if (timer) {
-                    clearTimeout(timer);
-                    timer = null;
-                }
-                if (throbber) {
-                    noder.remove(throbber);
-                    throbber = null;
-                }
-            },
-            update = function(params) {
-                if (params && params.text && throbber) {
-                    textNode.nodeValue = params.text;
-                }
-            };
-
-        if (params.style) {
-            styler.css(throbber,params.style);
-        }
-
-        //throb = noder.createElement("div", {
-        //   "class": params.throb && params.throb.className || "throb"
-        //}),
-        //textNode = noder.createTextNode(text || ""),
- 
-        var content = params.content ||  '<span class="throb"></span>';
-
-        //throb.appendChild(textNode);
-        //throbber.appendChild(throb);
-
-        noder.html(throbber,content);
-        
-        elm.appendChild(throbber);
-
-        var end = function() {
-            remove();
-            if (callback) callback();
-        };
-        if (time) {
-            timer = setTimeout(end, time);
-        }
-
-        return {
-            throbber : throbber,
-            remove: remove,
-            update: update
-        };
-    }
-
-    return fx.throb = throb;
-});
-define('skylark-domx-fx/toggle',[
-    "skylark-langx/langx",
-    "skylark-domx-styler",
-    "./fx",
-    "./show",
-    "./hide"
-],function(langx,styler,fx,show,hide) {
-    /*   
-     * Display or hide an element.
-     * @param {Object} elm  
-     * @param {Number or String} speed
-     * @param {Function} callbacke
-     */
-    function toggle(elm, speed, callback) {
-        if (styler.isInvisible(elm)) {
-            show(elm, speed, callback);
-        } else {
-            hide(elm, speed, callback);
-        }
-        return this;
-    }
-
-    return fx.toggle = toggle;
-});
-define('skylark-domx-fx/main',[
-	"./fx",
-	"skylark-domx-velm",
-	"skylark-domx-query",
-    "./animate",
-    "./bounce",
-    "./emulateTransitionEnd",
-    "./explode",
-    "./fadeIn",
-    "./fadeOut",
-    "./fade",
-    "./fadeToggle",
-    "./hide",
-    "./pulsate",
-    "./shake",
-    "./show",
-    "./slide",
-    "./slideDown",
-    "./slideToggle",
-    "./slideUp",
-    "./throb",
-    "./toggle"
-],function(fx,velm,$){
-    // from ./fx
-    velm.delegate([
-        "animate",
-        "emulateTransitionEnd",
-        "fadeIn",
-        "fadeOut",
-        "fade",
-        "fadeToggle",
-        "hide",
-        "scrollToTop",
-        "slideDown",
-        "slideToggle",
-        "slideUp",
-        "show",
-        "toggle"
-    ], fx);
-
-    $.fn.hide =  $.wraps.wrapper_every_act(fx.hide, fx);
-
-    $.fn.animate = $.wraps.wrapper_every_act(fx.animate, fx);
-    $.fn.emulateTransitionEnd = $.wraps.wrapper_every_act(fx.emulateTransitionEnd, fx);
-
-    $.fn.show = $.wraps.wrapper_every_act(fx.show, fx);
-    $.fn.hide = $.wraps.wrapper_every_act(fx.hide, fx);
-    $.fn.toogle = $.wraps.wrapper_every_act(fx.toogle, fx);
-    $.fn.fadeTo = $.wraps.wrapper_every_act(fx.fadeTo, fx);
-    $.fn.fadeIn = $.wraps.wrapper_every_act(fx.fadeIn, fx);
-    $.fn.fadeOut = $.wraps.wrapper_every_act(fx.fadeOut, fx);
-    $.fn.fadeToggle = $.wraps.wrapper_every_act(fx.fadeToggle, fx);
-
-    $.fn.slideDown = $.wraps.wrapper_every_act(fx.slideDown, fx);
-    $.fn.slideToggle = $.wraps.wrapper_every_act(fx.slideToggle, fx);
-    $.fn.slideUp = $.wraps.wrapper_every_act(fx.slideUp, fx);
-
-	return fx;
-});
-define('skylark-domx-fx', ['skylark-domx-fx/main'], function (main) { return main; });
-
-define('skylark-domx/fx',[
-    "skylark-domx-fx"
-], function( fx) {
-    return fx;
-});
-define('skylark-domx/geom',[
-    "skylark-domx-geom"
-], function( geom) {
-
-    return geom;
-});
-define('skylark-domx-iframes/iframes',[
-	"skylark-langx-ns"
-],function(skylark){
-	return skylark.attach("domx.iframes");
-});
-define('skylark-domx-iframes/create',[
-  "skylark-domx-noder",
-  "./iframes"
-],function(noder,iframes){
-  'use strict';
-
-  function create(options,parentElm) {
-  	  options = options || {
-  	  };
-
-  	  let props = {},
-  	  	  attrs = {};
-
-  	  if (options.id) {
-  	  	props.id = options.id;
-  	  };
-
-  	  if (options.url) {
-  	  	props.src = options.url;
-  	  };
-
-  	  if (options.style) {
-  	  	props.style = options.style;
-  	  }
-
-  	  if (options.onload) {
-  	  	props.onload = options.onload;
-  	  }
-
-  	  if (options.onerror) {
-  	  	props.onload = options.onerror;
-  	  }
-
-  	  if (options.className) {
-  	  	props.className = options.className;
-  	  }
-
-  	  if (options.sandbox) {
-  	  	attrs.sandbox = options.sandbox;
-  	  }
-
-  	  if (options.frameBorder) {
-  	  	attrs.frameBorder = options.frameBorder;  	  	
-  	  }
-
-  	  if (options.name) {
-  	  	attrs.name = options.name;
-  	  }
-
-  	  /*
-      // Basic mode
-      // This adds the runner iframe to the page. It's only run once.
-      //if (!$live.find('iframe').length) {
-        iframe = noder.create("iframe",{
-          ///iframe.src = jsbin.runner;
-          src : this.options.runnerUrl
-        },{
-          "class" : "stretch",
-          "sandbox", "allow-modals allow-forms allow-pointer-lock allow-popups allow-same-origin allow-scripts",
-          "frameBorder": '0',
-          "name", "<proxy>",
-        },this._elm);
-
-        try {
-          ///iframe.contentWindow.name = '/' + jsbin.state.code + '/' + jsbin.state.revision;
-          iframe.contentWindow.name  = this.options.runnerName;
-        } catch (e) {
-          // ^- this shouldn't really fail, but if we're honest, it's a fucking mystery as to why it even works.
-          // problem is: if this throws (because iframe.contentWindow is undefined), then the execution exits
-          // and `var renderLivePreview` is set to undefined. The knock on effect is that the calls to renderLivePreview
-          // then fail, and jsbin doesn't boot up. Tears all round, so we catch.
-        }
-      //}
-
-      iframe.onload = () => {
-        if (window.postMessage) {
-          // setup postMessage listening to the runner
-          $window.on('message', (event) => {
-            this.handleMessage(event.originalEvent)
-          });
-          this.setup(iframe);
-          this._inited.resolve();
-        }
-      };
-
-      iframe.onerror = err => {
-        this._inited.reject(err);
-      };
-
-      */
-
-      let iframe = noder.create("iframe",props,attrs,parentElm);
-
-      if (options.contentWindowName) {
-      	iframe.contentWindow.name = options.contentWindowName;
-      }
-
-      return iframe;
-  }
-
-  return iframes.create = create;
-});
-define('skylark-domx-iframes/hook-sizing',[
-  "skylark-domx-eventer",
-  "./iframes"
-],function(eventer,iframes){
-  'use strict';
-
-  function hookSizing(iframe) {
-    var onmessage = function (event) {
-      if (!event) { event = window.event; }
-      ///TODO : how check message source
-      // * 1 to coerse to number, and + 2 to compensate for border
-      iframe.style.height = (event.data.height * 1 + 2) + 'px';
-    };
-
-    eventer.on(window,'message', onmessage);
-  }
-
-  return iframes.hookSizing = hookSizing;
-
-});
-define('skylark-domx-iframes/load-real',[
-  "skylark-domx-noder",
-  "skylark-domx-data",
-  "./iframes",
-  "./hook-sizing"
-],function(noder,datax,iframes,hookSizing){
-
-  function loadReal(iframe,options) {
-    options = options || {};
-    var clone = noder.clone(iframe);
-    var url = options.url;
-    if (!url) {
-      url = datax.attr(clone,options.urlAttrName || 'data-url');
-    }
-    url = url.split('&')[0];
-    datax.prop(clone,"src",url);
-    datax.prop(clone,"_src",url); // support for google slide embed
-    noder.replace(clone,ifame);
-    ///hookSizing(clone);
-  }
-
-  return iframes.loadReal = loadReal;  
-});
-define('skylark-domx-iframes/lazy-load',[
-	"skylark-domx-eventer",
-	"skylark-domx-data",
-	"skylark-domx-geom",
-	"./iframes",
-	"./load-real"
-],function(eventer,datax,geom,iframes,loadReal){
-	var pending;
-
-
-  	function check() {
-	    var i = 0;
-	    var todo = [];
-	    for (i = 0; i < pending.length; i++) {
-	      if (geom.inview(pending[i], 400)) {
-	        todo.unshift({ iframe: pending[i], i: i });
-	      }
-	    }
-
-	    for (i = todo.length -1 ; i >=0 ; i--) {
-	      pending.splice(todo[i].i, 1);
-	      loadReal(todo[i].iframe);
-	    }
-  	}
-
-	function init() {
-		if (pending) {
-			return
-		}
-
-		pending = [];
-
-		eventer.on(window,"scroll",function(){
-			check();
-		});
-	}
-
-	function lazyLoad(iframe,options) {
-		init();
-
-		options = options || {};
-	
-      	///iframe.setAttribute('data-url', url);
-      	///iframe.src = 'https://jsbin.com/embed-holding';
-      	if (options.url) {
-      		datax.attr(iframe,(options.urlAttrName || "data-url"),options.url)
-      	}
-
-      	if (options.holdingUrl) {
-      		datax.prop(iframe,"src",options.holdingUrl)      		
-      	}
-
-		pending.push(iframe);
-	}
-
-	return iframes.lazyLoad = lazyLoad
-});
-define('skylark-langx-urls/urls',[
-  "skylark-langx-ns"
-],function(skylark){
-
-
-    return skylark.attach("langx.urls",{
-
-    });
-});
-
-
-
-define('skylark-langx-urls/getQuery',[
-    './urls'
-], function (urls) {
-    'use strict';
-	function getQuery(querystring) {
-		var query = {};
-
-		var pairs = querystring.split('&'),
-		    length = pairs.length,
-		    keyval = [],
-		    i = 0;
-
-		for (; i < length; i++) {
-		  keyval = pairs[i].split('=', 2);
-		  try {
-		    keyval[0] = decodeURIComponent(keyval[0]); // key
-		    keyval[1] = decodeURIComponent(keyval[1]); // value
-		  } catch (e) {}
-
-		  if (query[keyval[0]] === undefined) {
-		    query[keyval[0]] = keyval[1];
-		  } else {
-		    query[keyval[0]] += ',' + keyval[1];
-		  }
-		}
-
-		return query;
-	}
-
-	return urls.getQuery = getQuery;
-
-});
-define('skylark-domx-iframes/replace',[
-  "skylark-langx-urls/getQuery",
-  "skylark-domx-noder",
-  "skylark-domx-geom",
-  "skylark-domx-styler",
-  "./iframes",
-  "./create",
-  "./load-real",
-  "./lazy-load"
-],function(getQuery,noder,geom,styler,iframes,create,loadReal,lazyLoad){
-  'use strict';
-  
-  function replace(link,options) {
-    options = options || {};
-
-    /*
-    var iframe = noder.createElement('iframe',{
-      "className" : link.className, // inherit all the classes from the link
-      "id" : link.id, // also inherit, giving more style control to the user
-      "style" : { "border" : '1px solid #aaa'}
-    });
-    */
-
-    var ifarme =create({
-      "className" : link.className, // inherit all the classes from the link
-      "id" : link.id, // also inherit, giving more style control to the user
-      "style" : { 
-        "border" : '1px solid #aaa'
-      }
-    });
-    ///var url = link.href.replace(/edit/, 'embed');
-    var url = options.url || link.href,
-        size = options.size || getQuery(link.search),
-        holdingUrl = options.holdingUrl;
-
-    styler.css(iframe,"width", size.width || '100%');
-    styler.css(iframe,"minHeight", size.height || '300px');
-    if (size.height) {
-      styler.css(iframe,"maxHeight", size.height);
-    }
-
-    // track when it comes into view and reload
-    if (geom.inview(link, 100)) {
-      // the iframe is full view, let's render it
-      ///iframe.src = url.split('&')[0];
-      ///iframe._src = url.split('&')[0]; // support for google slide embed
-      ///hookMessaging(iframe);
-      loadReal(iframe,{url})
-    } else {
-      ///iframe.setAttribute('data-url', url);
-      ///iframe.src = 'https://jsbin.com/embed-holding';
-      ///pending.push(iframe);
-      lazyLoad(iframe,{
-        url,
-        holdingUrl
-      });
-
-    }
-
-    noder.replace(iframe, link);
-  }
-
-  return iframes.replace = replace;
-});
-define('skylark-domx-iframes/main',[
-	"./iframes",
-	"./create",
-	"./lazy-load",
-	"./load-real",
-	"./replace"
-],function(){
-	
-});
-define('skylark-domx-iframes', ['skylark-domx-iframes/main'], function (main) { return main; });
-
-define('skylark-domx/iframes',[
-    "skylark-domx-iframes"
-], function( iframes) {
-    return iframes;
-});
-define('skylark-domx-lists/lists',[
-	"skylark-langx-ns",
-	"skylark-domx-query",
-	"skylark-domx-data",
-	"skylark-domx-geom",
-	"skylark-domx-finder",
-	"skylark-domx-noder",
-	"skylark-domx-styler"
-],function(skylark){
-	return skylark.attach("domx.lists");
-});
-define('skylark-langx/main',[
-    "./langx"
-], function(langx) {
-    return langx;
-});
-
-define('skylark-langx', ['skylark-langx/main'], function (main) { return main; });
-
-define('skylark-domx-lists/multitier',[
-	"skylark-langx",
-	"skylark-domx-query",
-	"./lists"
-],function(langx,$,lists){
-	function multitier(elm,options) {
-		options = langx.mixin({
-			classes : {
-				active : "active",
-				collapse : "collapse",
-				in : "in",
-			},
-
-			selectors : {
-				item : "li",                   // ".list-group-item"
-				sublist : "ul",  // "> .list-group"
-				hasSublist : ":has(ul)",
-				toggler : " > a"
-			},
-
-			mode   : "",  // "tree" or "accordion" or "popover"
-
-			levels : 2,
-
-			multiExpand : false,
-
-			show : function($el) {
-				$el.show();
-			},
-
-			hide : function($el) {
-				$el.hide();
-			},
-
-			toggle : function($el) {
-				$el.toggle();
-			}
-		},options,true);
-
-    var itemSelector = options.selectors.item,
-        $items = $(itemSelector,elm),
-
-        activeClass = options.classes.active,
-        activeSelector = "." + activeClass,
-
-		multitierMode = options.mode,
-
-        sublistSelector = options.selectors.sublist;           
-        multiExpand = options.multiExpand,
-        togglerSelector = options.selectors.toggler,
-
-        collapseClass = options.classes.collapse,
-        inClass = options.classes.in,
-        inSelector = "." + inClass,
-
-        hide = options.hide,
-        toggle = options.toggle;
-
-     $items.has(sublistSelector).find(togglerSelector).on("click.multitier", function(e) {
-          e.preventDefault();
-
-          let $children;
-
-          if (!multiExpand) {
-              ///langx.scall($(this).closest(itemSelector).siblings().removeClass("active").children(sublistSelector+".in").plugin("domx.toggles.collapse"),"hide");
-              $clildren = $(this).closest(itemSelector).siblings().removeClass(activeClass).children(sublistSelector+"."+options.classes.in);
-              if ($children) {
-	              hide($children);
-              }
-          }
-          //$(this).closest(itemSelector).toggleClass(activeClass).children(sublistSelector).plugin("domx.toggles.collapse").toggle();
-          $children = $(this).closest(itemSelector).toggleClass(activeClass).children(options.selectors.sublist);
-          if ($children) {
-	          toggle($children);
-	      }
-      });
-
-      $items.filter(activeSelector).has(sublistSelector).children(sublistSelector).addClass(collapseClass).addClass(inClass);
-      $items.not(activeSelector).has(sublistSelector).children(sublistSelector).addClass(collapseClass);
-
-
-	}
-
-	return lists.multitier = multitier
-});
-define('skylark-domx-lists/main',[
-	"./lists",
-	"./multitier"
-],function(lists){
-	return lists;
-});
-define('skylark-domx-lists', ['skylark-domx-lists/main'], function (main) { return main; });
-
-define('skylark-domx/lists',[
-    "skylark-domx-lists"
-], function( lists) {
-
-    return lists;
-});
-define('skylark-domx/noder',[
-    "skylark-domx-noder"
-], function( noder) {
-
-    return noder;
-});
-define('skylark-domx/styler',[
-    "skylark-domx-styler"
-], function( styler) {
-
-    return styler;
-});
-define('skylark-domx/query',[
-    "skylark-domx-query",
-    "./data",
-    "./eventer",
-    "./fx",
-    "./geom",
-    "./styler"
-], function( query) {
-
-    return query;
-
-});
-define('skylark-domx-transforms/transforms',[
-    "skylark-langx/skylark",
-    "skylark-langx/langx",
-    "skylark-domx-browser",
-    "skylark-domx-data",
-    "skylark-domx-styler"
-], function(skylark,langx,browser,datax,styler) {
-  var css3Transform = browser.normalizeCssProperty("transform");
-
-  function getMatrix(radian, x, y) {
-    var Cos = Math.cos(radian), Sin = Math.sin(radian);
-    return {
-      M11: Cos * x, 
-      M12: -Sin * y,
-      M21: Sin * x, 
-      M22: Cos * y
-    };
-  }
-
-  function getZoom(scale, zoom) {
-      return scale > 0 && scale > -zoom ? zoom :
-        scale < 0 && scale < zoom ? -zoom : 0;
-  }
-
-  function change(el,d) {
-      var matrix = getMatrix(d.radian, d.y, d.x);
-      styler.css(el,css3Transform, "matrix("
-        + matrix.M11.toFixed(16) + "," + matrix.M21.toFixed(16) + ","
-        + matrix.M12.toFixed(16) + "," + matrix.M22.toFixed(16) + ", 0, 0)"
-      );      
-  }
-
-  function transformData(el,d) {
-    if (d) {
-      datax.data(el,"transform",d);
-    } else {
-      d = datax.data(el,"transform") || {};
-      d.radian = d.radian || 0;
-      d.x = d.x || 1;
-      d.y = d.y || 1;
-      d.zoom = d.zoom || 1;
-      return d;     
-    }
-  }
-
-  var calcs = {
-    //Vertical flip
-    vertical : function (d) {
-        d.radian = Math.PI - d.radian; 
-        d.y *= -1;
-    },
-
-   //Horizontal flip
-    horizontal : function (d) {
-        d.radian = Math.PI - d.radian; 
-        d.x *= -1;
-    },
-
-    //Rotate according to angle
-    rotate : function (d,degress) {
-        d.radian = degress * Math.PI / 180;; 
-    },
-
-    //Turn left 90 degrees
-    left : function (d) {
-        d.radian -= Math.PI / 2; 
-    },
-
-    //Turn right 90 degrees
-    right : function (d) {
-        d.radian += Math.PI / 2; 
-    },
- 
-    //zoom
-    scale: function (d,zoom) {
-        var hZoom = getZoom(d.y, zoom), vZoom = getZoom(d.x, zoom);
-        if (hZoom && vZoom) {
-          d.y += hZoom; 
-          d.x += vZoom;
-        }
-    }, 
-
-    //zoom in
-    zoomin: function (d) { 
-      calcs.scale(d,0.1); 
-    },
-    
-    //zoom out
-    zoomout: function (d) { 
-      calcs.scale(d,-0.1); 
-    }
-
-  };
-  
-  
-  function _createApiMethod(calcFunc) {
-    return function() {
-      var args = langx.makeArray(arguments),
-        el = args.shift(),
-          d = transformData(el);
-        args.unshift(d);
-        calcFunc.apply(this,args)
-        change(el,d);
-        transformData(el,d);
-    }
-  }
-  
-
-  function matrix(el) {
-    var appliedTransforms = '';
-    do {
-      var transform = styler.css(el, 'transform');
-
-      if (transform && transform !== 'none') {
-        appliedTransforms = transform + ' ' + appliedTransforms;
-      }
-      /* jshint boss:true */
-    } while (el = el.parentElement);
-
-    if (window.DOMMatrix) {
-      return new DOMMatrix(appliedTransforms);
-    } else if (window.WebKitCSSMatrix) {
-      return new WebKitCSSMatrix(appliedTransforms);
-    } else if (window.CSSMatrix) {
-      return new CSSMatrix(appliedTransforms);
-    }
-  }
-   
-  function transforms() {
-    return transforms;
-  }
-
-  ["vertical","horizontal","rotate","left","right","scale","zoom","zoomin","zoomout"].forEach(function(name){
-    transforms[name] = _createApiMethod(calcs[name]);
-  });
-
-  langx.mixin(transforms, {
-    reset : function(el) {
-      var d = {
-        x : 1,
-        y : 1,
-        radian : 0,
-      }
-      change(el,d);
-      transformData(el,d);
-    },
-    matrix
-  });
-
-
-  return skylark.attach("domx.transforms", transforms);
-});
-
-define('skylark-domx-transforms/main',[
-	"./transforms"
-],function(transforms){
-	return transforms;
-});
-define('skylark-domx-transforms', ['skylark-domx-transforms/main'], function (main) { return main; });
-
-define('skylark-domx/transforms',[
-    "skylark-domx-transforms"
-], function(transforms) {
-  return transforms;
-});
-
 define('skylark-domx-transits/transits',[
     "skylark-langx/skylark",
     "skylark-langx/langx"
@@ -19743,6 +18107,34 @@ define('skylark-domx-transits/transit',[
     }
 
     return transits.transit = transit;
+
+});
+define('skylark-domx-fx/animate',[
+    "skylark-langx/langx",
+    "skylark-domx-transits/transit",
+    "skylark-domx-animates/animation",
+    "./fx"
+], function(langx, transit,animation,fx) {
+
+    /*   
+     * Perform a custom animation of a set of CSS properties.
+     * @param {Object} elm  
+     * @param {Number or String} properties
+     * @param {String} ease
+     * @param {Number or String} duration
+     * @param {Function} callback
+     * @param {Number or String} delay
+     */
+    function animate(elm, properties, duration, ease, callback, delay) {
+        if (langx.isString(properties)) {
+            return animation(elm,properties,duration,ease,callback,delay);
+        } else {
+            return transit(elm,properties,duration,ease,callback,delay);
+        }
+
+    }
+
+    return fx.animate = animate;
 
 });
 define('skylark-domx-transits/bounce',[
@@ -20717,6 +19109,1158 @@ define('skylark-domx-transits/main',[
 	return transits;
 });
 define('skylark-domx-transits', ['skylark-domx-transits/main'], function (main) { return main; });
+
+define('skylark-domx-fx/bounce',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+    return fx.bounce = transits.bounce;
+});
+define('skylark-domx-fx/emulateTransitionEnd',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+    return fx.emulateTransitionEnd = transits.emulateTransitionEnd;
+});
+define('skylark-domx-fx/explode',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+	return fx.explode = transits.explode;
+});
+
+define('skylark-domx-fx/fadeIn',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    return fx.fadeIn = transits.fadeIn;
+});
+define('skylark-domx-fx/fadeOut',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    return fx.fadeOut = transits.fadeOut;
+});
+define('skylark-domx-fx/fade',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    return fx.fade = transits.fade;
+});
+define('skylark-domx-fx/fadeToggle',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    return fx.fadeToggle = transits.fadeToggle;
+});
+define('skylark-domx-fx/hide',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    return fx.hide = transits.hide;
+});
+define('skylark-domx-fx/pulsate',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+	return fx.pulsate = transits.pulsate;
+
+});
+
+define('skylark-domx-fx/shake',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+	return fx.shake = transits.shake;
+
+});
+
+define('skylark-domx-fx/show',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    return fx.show = transits.show;
+});
+define('skylark-domx-fx/slide',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    function slide(elm,options,callback ) {
+    	if (langx.isFunction(options)) {
+    		callback = options;
+    		options = {};
+    	}
+    	options = options || {};
+		var direction = options.direction || "down",
+			isHide = ( direction === "up" || direction === "left" ),
+			isVert = ( direction === "up" || direction === "down" ),
+			duration = options.duration || fx.speeds.normal;
+
+
+        // get the element position to restore it then
+        var position = styler.css(elm, 'position');
+
+        if (isHide) {
+            // active the function only if the element is visible
+        	if (styler.isInvisible(elm)) {
+        		return this;
+        	}
+        } else {
+	        // show element if it is hidden
+	        styler.show(elm);        	
+	        // place it so it displays as usually but hidden
+	        styler.css(elm, {
+	            position: 'absolute',
+	            visibility: 'hidden'
+	        });
+        }
+
+
+
+        if (isVert) { // up--down
+	        // get naturally height, margin, padding
+	        var marginTop = styler.css(elm, 'margin-top');
+	        var marginBottom = styler.css(elm, 'margin-bottom');
+	        var paddingTop = styler.css(elm, 'padding-top');
+	        var paddingBottom = styler.css(elm, 'padding-bottom');
+	        var height = styler.css(elm, 'height');
+
+	        if (isHide) {  	// slideup
+	            // set initial css for animation
+	            styler.css(elm, {
+	                visibility: 'visible',
+	                overflow: 'hidden',
+	                height: height,
+	                marginTop: marginTop,
+	                marginBottom: marginBottom,
+	                paddingTop: paddingTop,
+	                paddingBottom: paddingBottom
+	            });
+
+	            // animate element height, margin and padding to zero
+	            animate(elm, {
+	                height: 0,
+	                marginTop: 0,
+	                marginBottom: 0,
+	                paddingTop: 0,
+	                paddingBottom: 0
+	            }, {
+	                // callback : restore the element position, height, margin and padding to original values
+	                duration: duration,
+	                queue: false,
+	                complete: function() {
+	                    styler.hide(elm);
+	                    styler.css(elm, {
+	                        visibility: 'visible',
+	                        overflow: 'hidden',
+	                        height: height,
+	                        marginTop: marginTop,
+	                        marginBottom: marginBottom,
+	                        paddingTop: paddingTop,
+	                        paddingBottom: paddingBottom
+	                    });
+	                    if (callback) {
+	                        callback.apply(elm);
+	                    }
+	                }
+	            });
+	        } else {     	// slidedown
+		        // set initial css for animation
+		        styler.css(elm, {
+		            position: position,
+		            visibility: 'visible',
+		            overflow: 'hidden',
+		            height: 0,
+		            marginTop: 0,
+		            marginBottom: 0,
+		            paddingTop: 0,
+		            paddingBottom: 0
+		        });
+
+		        // animate to gotten height, margin and padding
+		        animate(elm, {
+		            height: height,
+		            marginTop: marginTop,
+		            marginBottom: marginBottom,
+		            paddingTop: paddingTop,
+		            paddingBottom: paddingBottom
+		        }, {
+		            duration: duration,
+		            complete: function() {
+		                if (callback) {
+		                    callback.apply(elm);
+		                }
+		            }
+		        });
+
+	        }
+
+        } else { // left--right
+	        // get naturally height, margin, padding
+	        var marginLeft = styler.css(elm, 'margin-left');
+	        var marginRight = styler.css(elm, 'margin-right');
+	        var paddingLeft = styler.css(elm, 'padding-left');
+	        var paddingRight = styler.css(elm, 'padding-right');
+	        var width = styler.css(elm, 'width');
+
+	        if (isHide) {  	// slideleft
+	            // set initial css for animation
+	            styler.css(elm, {
+	                visibility: 'visible',
+	                overflow: 'hidden',
+	                width: width,
+	                marginLeft: marginLeft,
+	                marginRight: marginRight,
+	                paddingLeft: paddingLeft,
+	                paddingRight: paddingRight
+	            });
+
+	            // animate element height, margin and padding to zero
+	            animate(elm, {
+	                width: 0,
+	                marginLeft: 0,
+	                marginRight: 0,
+	                paddingLeft: 0,
+	                paddingRight: 0
+	            }, {
+	                // callback : restore the element position, height, margin and padding to original values
+	                duration: duration,
+	                queue: false,
+	                complete: function() {
+	                    styler.hide(elm);
+	                    styler.css(elm, {
+	                        visibility: 'visible',
+	                        overflow: 'hidden',
+	                        width: width,
+	                        marginLeft: marginLeft,
+	                        marginRight: marginRight,
+	                        paddingLeft: paddingLeft,
+	                        paddingRight: paddingRight
+	                    });
+	                    if (callback) {
+	                        callback.apply(elm);
+	                    }
+	                }
+	            });
+	        } else {     	// slideright
+		        // set initial css for animation
+		        styler.css(elm, {
+		            position: position,
+		            visibility: 'visible',
+		            overflow: 'hidden',
+		            width: 0,
+		            marginLeft: 0,
+		            marginRight: 0,
+		            paddingLeft: 0,
+		            paddingRight: 0
+		        });
+
+		        // animate to gotten width, margin and padding
+		        animate(elm, {
+		            width: width,
+		            marginLeft: marginLeft,
+		            marginRight: marginRight,
+		            paddingLeft: paddingLeft,
+		            paddingRight: paddingRight
+		        }, {
+		            duration: duration,
+		            complete: function() {
+		                if (callback) {
+		                    callback.apply(elm);
+		                }
+		            }
+		        });
+
+	        }       	
+        }
+
+        return this;
+    }
+
+    return fx.slide = slide;
+
+});
+
+define('skylark-domx-fx/slideDown',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+    /*   
+     * Display an element with a sliding motion.
+     * @param {Object} elm  
+     * @param {Number or String} duration
+     * @param {Function} callback
+     */
+    function slideDown(elm, duration, callback) {
+        return slide(elm,{
+            direction : "down",
+            duration : duration
+        },callback);
+    }
+
+    return fx.slideDown = slideDown;
+});
+define('skylark-domx-fx/slideToggle',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+
+    /*   
+     * Display or hide an element with a sliding motion.
+     * @param {Object} elm  
+     * @param {Number or String} duration
+     * @param {Function} callback
+     */
+    function slideToggle(elm, duration, callback) {
+
+        // if the element is hidden, slideDown !
+        if (geom.height(elm) == 0) {
+            slideDown(elm, duration, callback);
+        }
+        // if the element is visible, slideUp !
+        else {
+            slideUp(elm, duration, callback);
+        }
+        return this;
+    }
+
+    return fx.slideToggle = slideToggle;
+});
+define('skylark-domx-fx/slideUp',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+    /*   
+     * Hide an element with a sliding motion.
+     * @param {Object} elm  
+     * @param {Number or String} duration
+     * @param {Function} callback
+     */
+    function slideUp(elm, duration, callback) {
+        return slide(elm,{
+            direction : "up",
+            duration : duration
+        },callback);
+    }
+
+
+
+    return fx.slideUp = slideUp;
+});
+define('skylark-domx-fx/throb',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+    
+    /*   
+     * Replace an old node with the specified node.
+     * @param {HTMLElement} elm
+     * @param {Node} params
+     */
+    function throb(elm, params) {
+        params = params || {};
+
+        var self = this,
+            text = params.text,
+            style = params.style,
+            time = params.time,
+            callback = params.callback,
+            timer,
+
+            throbber = noder.createElement("div", {
+                "class": params.className || "throbber"
+            }),
+            //_overlay = overlay(throbber, {
+            //    "class": 'overlay fade'
+            //}),
+            remove = function() {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+                if (throbber) {
+                    noder.remove(throbber);
+                    throbber = null;
+                }
+            },
+            update = function(params) {
+                if (params && params.text && throbber) {
+                    textNode.nodeValue = params.text;
+                }
+            };
+
+        if (params.style) {
+            styler.css(throbber,params.style);
+        }
+
+        //throb = noder.createElement("div", {
+        //   "class": params.throb && params.throb.className || "throb"
+        //}),
+        //textNode = noder.createTextNode(text || ""),
+ 
+        var content = params.content ||  '<span class="throb"></span>';
+
+        //throb.appendChild(textNode);
+        //throbber.appendChild(throb);
+
+        noder.html(throbber,content);
+        
+        elm.appendChild(throbber);
+
+        var end = function() {
+            remove();
+            if (callback) callback();
+        };
+        if (time) {
+            timer = setTimeout(end, time);
+        }
+
+        return {
+            throbber : throbber,
+            remove: remove,
+            update: update
+        };
+    }
+
+    return fx.throb = throb;
+});
+define('skylark-domx-fx/toggle',[
+    "skylark-domx-transits",
+    "./fx"
+],function(transits,fx) {
+    /*   
+     * Display or hide an element.
+     * @param {Object} elm  
+     * @param {Number or String} speed
+     * @param {Function} callbacke
+     */
+    function toggle(elm, speed, callback) {
+        if (styler.isInvisible(elm)) {
+            show(elm, speed, callback);
+        } else {
+            hide(elm, speed, callback);
+        }
+        return this;
+    }
+
+    return fx.toggle = toggle;
+});
+define('skylark-domx-fx/main',[
+	"./fx",
+    "./animate",
+    "./bounce",
+    "./emulateTransitionEnd",
+    "./explode",
+    "./fadeIn",
+    "./fadeOut",
+    "./fade",
+    "./fadeToggle",
+    "./hide",
+    "./pulsate",
+    "./shake",
+    "./show",
+    "./slide",
+    "./slideDown",
+    "./slideToggle",
+    "./slideUp",
+    "./throb",
+    "./toggle"
+],function(fx){
+
+	return fx;
+});
+define('skylark-domx-fx', ['skylark-domx-fx/main'], function (main) { return main; });
+
+define('skylark-domx/fx',[
+    "skylark-domx-fx"
+], function( fx) {
+    return fx;
+});
+define('skylark-domx/geom',[
+    "skylark-domx-geom"
+], function( geom) {
+
+    return geom;
+});
+define('skylark-domx-iframes/iframes',[
+	"skylark-langx-ns"
+],function(skylark){
+	return skylark.attach("domx.iframes");
+});
+define('skylark-domx-iframes/create',[
+  "skylark-domx-noder",
+  "./iframes"
+],function(noder,iframes){
+  'use strict';
+
+  function create(options,parentElm) {
+  	  options = options || {
+  	  };
+
+  	  let props = {},
+  	  	  attrs = {};
+
+  	  if (options.id) {
+  	  	props.id = options.id;
+  	  };
+
+  	  if (options.url) {
+  	  	props.src = options.url;
+  	  };
+
+  	  if (options.style) {
+  	  	props.style = options.style;
+  	  }
+
+  	  if (options.onload) {
+  	  	props.onload = options.onload;
+  	  }
+
+  	  if (options.onerror) {
+  	  	props.onload = options.onerror;
+  	  }
+
+  	  if (options.className) {
+  	  	props.className = options.className;
+  	  }
+
+  	  if (options.sandbox) {
+  	  	attrs.sandbox = options.sandbox;
+  	  }
+
+  	  if (options.frameBorder) {
+  	  	attrs.frameBorder = options.frameBorder;  	  	
+  	  }
+
+  	  if (options.name) {
+  	  	attrs.name = options.name;
+  	  }
+
+  	  /*
+      // Basic mode
+      // This adds the runner iframe to the page. It's only run once.
+      //if (!$live.find('iframe').length) {
+        iframe = noder.create("iframe",{
+          ///iframe.src = jsbin.runner;
+          src : this.options.runnerUrl
+        },{
+          "class" : "stretch",
+          "sandbox", "allow-modals allow-forms allow-pointer-lock allow-popups allow-same-origin allow-scripts",
+          "frameBorder": '0',
+          "name", "<proxy>",
+        },this._elm);
+
+        try {
+          ///iframe.contentWindow.name = '/' + jsbin.state.code + '/' + jsbin.state.revision;
+          iframe.contentWindow.name  = this.options.runnerName;
+        } catch (e) {
+          // ^- this shouldn't really fail, but if we're honest, it's a fucking mystery as to why it even works.
+          // problem is: if this throws (because iframe.contentWindow is undefined), then the execution exits
+          // and `var renderLivePreview` is set to undefined. The knock on effect is that the calls to renderLivePreview
+          // then fail, and jsbin doesn't boot up. Tears all round, so we catch.
+        }
+      //}
+
+      iframe.onload = () => {
+        if (window.postMessage) {
+          // setup postMessage listening to the runner
+          $window.on('message', (event) => {
+            this.handleMessage(event.originalEvent)
+          });
+          this.setup(iframe);
+          this._inited.resolve();
+        }
+      };
+
+      iframe.onerror = err => {
+        this._inited.reject(err);
+      };
+
+      */
+
+      let iframe = noder.create("iframe",props,attrs,parentElm);
+
+      if (options.contentWindowName) {
+      	iframe.contentWindow.name = options.contentWindowName;
+      }
+
+      return iframe;
+  }
+
+  return iframes.create = create;
+});
+define('skylark-domx-iframes/hook-sizing',[
+  "skylark-domx-eventer",
+  "./iframes"
+],function(eventer,iframes){
+  'use strict';
+
+  function hookSizing(iframe) {
+    var onmessage = function (event) {
+      if (!event) { event = window.event; }
+      ///TODO : how check message source
+      // * 1 to coerse to number, and + 2 to compensate for border
+      iframe.style.height = (event.data.height * 1 + 2) + 'px';
+    };
+
+    eventer.on(window,'message', onmessage);
+  }
+
+  return iframes.hookSizing = hookSizing;
+
+});
+define('skylark-domx-iframes/load-real',[
+  "skylark-domx-noder",
+  "skylark-domx-data",
+  "./iframes",
+  "./hook-sizing"
+],function(noder,datax,iframes,hookSizing){
+
+  function loadReal(iframe,options) {
+    options = options || {};
+    var clone = noder.clone(iframe);
+    var url = options.url;
+    if (!url) {
+      url = datax.attr(clone,options.urlAttrName || 'data-url');
+    }
+    url = url.split('&')[0];
+    datax.prop(clone,"src",url);
+    datax.prop(clone,"_src",url); // support for google slide embed
+    noder.replace(clone,ifame);
+    ///hookSizing(clone);
+  }
+
+  return iframes.loadReal = loadReal;  
+});
+define('skylark-domx-iframes/lazy-load',[
+	"skylark-domx-eventer",
+	"skylark-domx-data",
+	"skylark-domx-geom",
+	"./iframes",
+	"./load-real"
+],function(eventer,datax,geom,iframes,loadReal){
+	var pending;
+
+
+  	function check() {
+	    var i = 0;
+	    var todo = [];
+	    for (i = 0; i < pending.length; i++) {
+	      if (geom.inview(pending[i], 400)) {
+	        todo.unshift({ iframe: pending[i], i: i });
+	      }
+	    }
+
+	    for (i = todo.length -1 ; i >=0 ; i--) {
+	      pending.splice(todo[i].i, 1);
+	      loadReal(todo[i].iframe);
+	    }
+  	}
+
+	function init() {
+		if (pending) {
+			return
+		}
+
+		pending = [];
+
+		eventer.on(window,"scroll",function(){
+			check();
+		});
+	}
+
+	function lazyLoad(iframe,options) {
+		init();
+
+		options = options || {};
+	
+      	///iframe.setAttribute('data-url', url);
+      	///iframe.src = 'https://jsbin.com/embed-holding';
+      	if (options.url) {
+      		datax.attr(iframe,(options.urlAttrName || "data-url"),options.url)
+      	}
+
+      	if (options.holdingUrl) {
+      		datax.prop(iframe,"src",options.holdingUrl)      		
+      	}
+
+		pending.push(iframe);
+	}
+
+	return iframes.lazyLoad = lazyLoad
+});
+define('skylark-langx-urls/urls',[
+  "skylark-langx-ns"
+],function(skylark){
+
+
+    return skylark.attach("langx.urls",{
+
+    });
+});
+
+
+
+define('skylark-langx-urls/getQuery',[
+    './urls'
+], function (urls) {
+    'use strict';
+	function getQuery(querystring) {
+		var query = {};
+
+		var pairs = querystring.split('&'),
+		    length = pairs.length,
+		    keyval = [],
+		    i = 0;
+
+		for (; i < length; i++) {
+		  keyval = pairs[i].split('=', 2);
+		  try {
+		    keyval[0] = decodeURIComponent(keyval[0]); // key
+		    keyval[1] = decodeURIComponent(keyval[1]); // value
+		  } catch (e) {}
+
+		  if (query[keyval[0]] === undefined) {
+		    query[keyval[0]] = keyval[1];
+		  } else {
+		    query[keyval[0]] += ',' + keyval[1];
+		  }
+		}
+
+		return query;
+	}
+
+	return urls.getQuery = getQuery;
+
+});
+define('skylark-domx-iframes/replace',[
+  "skylark-langx-urls/getQuery",
+  "skylark-domx-noder",
+  "skylark-domx-geom",
+  "skylark-domx-styler",
+  "./iframes",
+  "./create",
+  "./load-real",
+  "./lazy-load"
+],function(getQuery,noder,geom,styler,iframes,create,loadReal,lazyLoad){
+  'use strict';
+  
+  function replace(link,options) {
+    options = options || {};
+
+    /*
+    var iframe = noder.createElement('iframe',{
+      "className" : link.className, // inherit all the classes from the link
+      "id" : link.id, // also inherit, giving more style control to the user
+      "style" : { "border" : '1px solid #aaa'}
+    });
+    */
+
+    var ifarme =create({
+      "className" : link.className, // inherit all the classes from the link
+      "id" : link.id, // also inherit, giving more style control to the user
+      "style" : { 
+        "border" : '1px solid #aaa'
+      }
+    });
+    ///var url = link.href.replace(/edit/, 'embed');
+    var url = options.url || link.href,
+        size = options.size || getQuery(link.search),
+        holdingUrl = options.holdingUrl;
+
+    styler.css(iframe,"width", size.width || '100%');
+    styler.css(iframe,"minHeight", size.height || '300px');
+    if (size.height) {
+      styler.css(iframe,"maxHeight", size.height);
+    }
+
+    // track when it comes into view and reload
+    if (geom.inview(link, 100)) {
+      // the iframe is full view, let's render it
+      ///iframe.src = url.split('&')[0];
+      ///iframe._src = url.split('&')[0]; // support for google slide embed
+      ///hookMessaging(iframe);
+      loadReal(iframe,{url})
+    } else {
+      ///iframe.setAttribute('data-url', url);
+      ///iframe.src = 'https://jsbin.com/embed-holding';
+      ///pending.push(iframe);
+      lazyLoad(iframe,{
+        url,
+        holdingUrl
+      });
+
+    }
+
+    noder.replace(iframe, link);
+  }
+
+  return iframes.replace = replace;
+});
+define('skylark-domx-iframes/main',[
+	"./iframes",
+	"./create",
+	"./lazy-load",
+	"./load-real",
+	"./replace"
+],function(){
+	
+});
+define('skylark-domx-iframes', ['skylark-domx-iframes/main'], function (main) { return main; });
+
+define('skylark-domx/iframes',[
+    "skylark-domx-iframes"
+], function( iframes) {
+    return iframes;
+});
+define('skylark-domx-lists/lists',[
+	"skylark-langx-ns",
+	"skylark-domx-query",
+	"skylark-domx-data",
+	"skylark-domx-geom",
+	"skylark-domx-finder",
+	"skylark-domx-noder",
+	"skylark-domx-styler"
+],function(skylark){
+	return skylark.attach("domx.lists");
+});
+define('skylark-langx/main',[
+    "./langx"
+], function(langx) {
+    return langx;
+});
+
+define('skylark-langx', ['skylark-langx/main'], function (main) { return main; });
+
+define('skylark-domx-lists/multitier',[
+	"skylark-langx",
+	"skylark-domx-query",
+	"./lists"
+],function(langx,$,lists){
+  'use strict'
+
+	function multitier(elm,options) {
+		options = langx.mixin({
+
+			classes : {
+				active : "active",
+				collapse : "collapse",
+				in : "in",
+			},
+
+			selectors : {
+				item : "li",                   // ".list-group-item"
+				sublist : "ul",  // "> .list-group"
+				hasSublist : ":has(ul)",
+				handler : " > a"
+			},
+
+
+			mode   : "",  // "tree" or "accordion" or "popover"
+
+			levels : 2,
+
+			togglable : false,
+			multiExpand : false,
+
+			/*
+			show : function($el) {
+				$el.show();
+			},
+
+			hide : function($el) {
+				//$el.hide();
+				$el.add
+			},
+
+			toggle : function($el) {
+				$el.toggle();
+			}
+			*/
+		},options,true);
+
+    var itemSelector = options.selectors.item,
+        $items = $(itemSelector,elm),
+
+        activeClass = options.classes.active,
+        activeSelector = "." + activeClass,
+
+		multitierMode = options.mode,
+
+        sublistSelector = options.selectors.sublist,  
+        togglable = options.togglable,   
+        multiExpand = options.multiExpand,
+        handlerSelector = options.selectors.handler,
+
+        collapseClass = options.classes.collapse,
+        inClass = options.classes.in,
+        inSelector = "." + inClass,
+
+        show = options.show || function($el) {
+        	$el.addClass(inClass);
+        },
+        hide = options.hide || function($el) {
+        	$el.addClass(collapseClass).removeClass(inClass);
+
+        },
+        toggle = options.toggle || function($el) {
+			if ($el.hasClass(inClass)) {
+				hide($el);
+			} else {
+				show($el);
+			}
+        };
+
+     $items.find(handlerSelector).on("click.multitier", function(e) {
+          e.preventDefault();
+
+          let $children,
+          	  $clickedItem =  $(this).closest(itemSelector);
+
+          if (!multiExpand) {
+              ///langx.scall($(this).closest(itemSelector).siblings().removeClass("active").children(sublistSelector+".in").plugin("domx.toggles.collapse"),"hide");
+              //$clildren = $(this).closest(itemSelector).siblings().removeClass(activeClass).children(sublistSelector+"."+options.classes.in);
+              $children = $clickedItem.siblings().removeClass(activeClass).children(sublistSelector);
+              if ($children) {
+	              hide($children);
+              }
+          }
+          //$(this).closest(itemSelector).toggleClass(activeClass).children(sublistSelector).plugin("domx.toggles.collapse").toggle();
+          let isActiveItem = $clickedItem.hasClass(activeClass);
+          if (!isActiveItem || togglable) {
+	          $children = $clickedItem.children(options.selectors.sublist);
+	          if (isActiveItem) {
+				$clickedItem.removeClass(activeClass);
+				hide($children)  	
+	          } else {
+				$clickedItem.addClass(activeClass);
+				show($children)  	
+	          }
+
+          }
+      });
+
+      hide($items.has(sublistSelector).children(sublistSelector));
+
+      show($items.filter(activeSelector).has(sublistSelector).children(sublistSelector))
+
+
+	}
+
+	return lists.multitier = multitier
+});
+define('skylark-domx-lists/main',[
+	"./lists",
+	"./multitier"
+],function(lists){
+	return lists;
+});
+define('skylark-domx-lists', ['skylark-domx-lists/main'], function (main) { return main; });
+
+define('skylark-domx/lists',[
+    "skylark-domx-lists"
+], function( lists) {
+
+    return lists;
+});
+define('skylark-domx/noder',[
+    "skylark-domx-noder"
+], function( noder) {
+
+    return noder;
+});
+define('skylark-domx/styler',[
+    "skylark-domx-styler"
+], function( styler) {
+
+    return styler;
+});
+define('skylark-domx/query',[
+    "skylark-domx-query",
+    "./data",
+    "./eventer",
+    "./fx",
+    "./geom",
+    "./styler"
+], function( query) {
+
+    return query;
+
+});
+define('skylark-domx-transforms/transforms',[
+    "skylark-langx/skylark",
+    "skylark-langx/langx",
+    "skylark-domx-browser",
+    "skylark-domx-data",
+    "skylark-domx-styler"
+], function(skylark,langx,browser,datax,styler) {
+  var css3Transform = browser.normalizeCssProperty("transform");
+
+  function getMatrix(radian, x, y) {
+    var Cos = Math.cos(radian), Sin = Math.sin(radian);
+    return {
+      M11: Cos * x, 
+      M12: -Sin * y,
+      M21: Sin * x, 
+      M22: Cos * y
+    };
+  }
+
+  function getZoom(scale, zoom) {
+      return scale > 0 && scale > -zoom ? zoom :
+        scale < 0 && scale < zoom ? -zoom : 0;
+  }
+
+  function change(el,d) {
+      var matrix = getMatrix(d.radian, d.y, d.x);
+      styler.css(el,css3Transform, "matrix("
+        + matrix.M11.toFixed(16) + "," + matrix.M21.toFixed(16) + ","
+        + matrix.M12.toFixed(16) + "," + matrix.M22.toFixed(16) + ", 0, 0)"
+      );      
+  }
+
+  function transformData(el,d) {
+    if (d) {
+      datax.data(el,"transform",d);
+    } else {
+      d = datax.data(el,"transform") || {};
+      d.radian = d.radian || 0;
+      d.x = d.x || 1;
+      d.y = d.y || 1;
+      d.zoom = d.zoom || 1;
+      return d;     
+    }
+  }
+
+  var calcs = {
+    //Vertical flip
+    vertical : function (d) {
+        d.radian = Math.PI - d.radian; 
+        d.y *= -1;
+    },
+
+   //Horizontal flip
+    horizontal : function (d) {
+        d.radian = Math.PI - d.radian; 
+        d.x *= -1;
+    },
+
+    //Rotate according to angle
+    rotate : function (d,degress) {
+        d.radian = degress * Math.PI / 180;; 
+    },
+
+    //Turn left 90 degrees
+    left : function (d) {
+        d.radian -= Math.PI / 2; 
+    },
+
+    //Turn right 90 degrees
+    right : function (d) {
+        d.radian += Math.PI / 2; 
+    },
+ 
+    //zoom
+    scale: function (d,zoom) {
+        var hZoom = getZoom(d.y, zoom), vZoom = getZoom(d.x, zoom);
+        if (hZoom && vZoom) {
+          d.y += hZoom; 
+          d.x += vZoom;
+        }
+    }, 
+
+    //zoom in
+    zoomin: function (d) { 
+      calcs.scale(d,0.1); 
+    },
+    
+    //zoom out
+    zoomout: function (d) { 
+      calcs.scale(d,-0.1); 
+    }
+
+  };
+  
+  
+  function _createApiMethod(calcFunc) {
+    return function() {
+      var args = langx.makeArray(arguments),
+        el = args.shift(),
+          d = transformData(el);
+        args.unshift(d);
+        calcFunc.apply(this,args)
+        change(el,d);
+        transformData(el,d);
+    }
+  }
+  
+
+  function matrix(el) {
+    var appliedTransforms = '';
+    do {
+      var transform = styler.css(el, 'transform');
+
+      if (transform && transform !== 'none') {
+        appliedTransforms = transform + ' ' + appliedTransforms;
+      }
+      /* jshint boss:true */
+    } while (el = el.parentElement);
+
+    if (window.DOMMatrix) {
+      return new DOMMatrix(appliedTransforms);
+    } else if (window.WebKitCSSMatrix) {
+      return new WebKitCSSMatrix(appliedTransforms);
+    } else if (window.CSSMatrix) {
+      return new CSSMatrix(appliedTransforms);
+    }
+  }
+   
+  function transforms() {
+    return transforms;
+  }
+
+  ["vertical","horizontal","rotate","left","right","scale","zoom","zoomin","zoomout"].forEach(function(name){
+    transforms[name] = _createApiMethod(calcs[name]);
+  });
+
+  langx.mixin(transforms, {
+    reset : function(el) {
+      var d = {
+        x : 1,
+        y : 1,
+        radian : 0,
+      }
+      change(el,d);
+      transformData(el,d);
+    },
+    matrix
+  });
+
+
+  return skylark.attach("domx.transforms", transforms);
+});
+
+define('skylark-domx-transforms/main',[
+	"./transforms"
+],function(transforms){
+	return transforms;
+});
+define('skylark-domx-transforms', ['skylark-domx-transforms/main'], function (main) { return main; });
+
+define('skylark-domx/transforms',[
+    "skylark-domx-transforms"
+], function(transforms) {
+  return transforms;
+});
 
 define('skylark-domx/transits',[
     "skylark-domx-transits"
