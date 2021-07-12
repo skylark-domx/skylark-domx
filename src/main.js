@@ -15,7 +15,7 @@ define([
     "./transforms",
     "./transits",
     "./velm"
-], function(browser,css,data,eventer,finder,fx,geom,iframes,lists,noder,query,styler,transforms,velm) {
+], function(animates,browser,css,data,eventer,finder,fx,geom,iframes,lists,noder,query,styler,transforms,transits,velm) {
     return {
         animates,
         browser,
