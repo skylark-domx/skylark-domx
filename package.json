@@ -34,6 +34,7 @@
     "skylark-domx-geom": "git+https://github.com/skylark-domx/skylark-domx-geom.git",
     "skylark-domx-iframes": "git+https://github.com/skylark-domx/skylark-domx-iframes.git",
     "skylark-domx-lists": "git+https://github.com/skylark-domx/skylark-domx-lists.git",
+    "skylark-domx-medias": "git+https://github.com/skylark-domx/skylark-domx-medias.git",
     "skylark-domx-noder": "git+https://github.com/skylark-domx/skylark-domx-noder.git",
     "skylark-domx-query": "git+https://github.com/skylark-domx/skylark-domx-query.git",
     "skylark-domx-styler": "git+https://github.com/skylark-domx/skylark-domx-styler.git",
