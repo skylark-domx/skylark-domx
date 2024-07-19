@@ -1,1 +1,1 @@
-{"version":3,"sources":["medias.js"],"names":["define","medias"],"mappings":";;;;;;;AAAAA,QACI,uBACD,SAAUC,GAET,OAAOA","file":"../medias.js","sourcesContent":["define([\r\n    \"skylark-domx-medias\"\r\n], function( medias) {\r\n\r\n    return medias;\r\n});"]}
+{"version":3,"sources":["medias.js"],"names":["define","medias"],"mappings":";;;;;;;AAAAA,OAAO,CACH,uBACD,SAAUC,GAET,OAAOA,CACX,CAAC","file":"../medias.js","sourcesContent":["define([\r\n    \"skylark-domx-medias\"\r\n], function( medias) {\r\n\r\n    return medias;\r\n});"]}

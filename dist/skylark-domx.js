@@ -5,5 +5,85 @@
  * @link www.skylarkjs.org
  * @license MIT
  */
-!function(r,e){var o=e.define,require=e.require,n="function"==typeof o&&o.amd,t=!n&&"undefined"!=typeof exports;if(!n&&!o){var i={};o=e.define=function(r,e,o){"function"==typeof o?(i[r]={factory:o,deps:e.map(function(e){return function(r,e){if("."!==r[0])return r;var o=e.split("/"),n=r.split("/");o.pop();for(var t=0;t<n.length;t++)"."!=n[t]&&(".."==n[t]?o.pop():o.push(n[t]));return o.join("/")}(e,r)}),resolved:!1,exports:null},require(r)):i[r]={factory:null,resolved:!0,exports:o}},require=e.require=function(r){if(!i.hasOwnProperty(r))throw new Error("Module "+r+" has not been defined");var module=i[r];if(!module.resolved){var o=[];module.deps.forEach(function(r){o.push(require(r))}),module.exports=module.factory.apply(e,o)||null,module.resolved=!0}return module.exports}}if(!o)throw new Error("The module utility (ex: requirejs or skylark-utils) is not loaded!");if(!n){var s=require("skylark-langx-ns");t?module.exports=s:e.skylarkjs=s}}(0,this);
+(function(factory,globals,define,require) {
+  var isAmd = (typeof define === 'function' && define.amd),
+      isCmd = (!isAmd && typeof exports !== 'undefined');
+
+  if (!isAmd && !define) {
+    var map = {};
+    function absolute(relative, base) {
+        if (relative[0]!==".") {
+          return relative;
+        }
+        var stack = base.split("/"),
+            parts = relative.split("/");
+        stack.pop(); 
+        for (var i=0; i<parts.length; i++) {
+            if (parts[i] == ".")
+                continue;
+            if (parts[i] == "..")
+                stack.pop();
+            else
+                stack.push(parts[i]);
+        }
+        return stack.join("/");
+    }
+    define = globals.define = function(id, deps, factory) {
+        if (typeof factory == 'function') {
+            map[id] = {
+                factory: factory,
+                deps: deps.map(function(dep){
+                  return absolute(dep,id);
+                }),
+                resolved: false,
+                exports: null
+            };
+            require(id);
+        } else {
+            map[id] = {
+                factory : null,
+                resolved : true,
+                exports : factory
+            };
+        }
+    };
+    require = globals.require = function(id) {
+        if (!map.hasOwnProperty(id)) {
+            throw new Error('Module ' + id + ' has not been defined');
+        }
+        var module = map[id];
+        if (!module.resolved) {
+            var args = [];
+
+            module.deps.forEach(function(dep){
+                args.push(require(dep));
+            })
+
+            module.exports = module.factory.apply(globals, args) || null;
+            module.resolved = true;
+        }
+        return module.exports;
+    };
+  }
+  
+  if (!define) {
+     throw new Error("The module utility (ex: requirejs or skylark-utils) is not loaded!");
+  }
+
+  factory(define,require);
+
+  if (!isAmd) {
+    var skylarkjs = require("skylark-langx-ns");
+
+    if (isCmd) {
+      module.exports = skylarkjs;
+    } else {
+      globals.skylarkjs  = skylarkjs;
+    }
+  }
+
+})(function(define,require) {
+
+define("skylark-domx/animates",["skylark-domx-animates"],function(r){return r}),define("skylark-domx/browser",["skylark-domx-browser"],function(r){"use strict";return r}),define("skylark-domx/css",["skylark-domx-css"],function(r){"use strict";return r}),define("skylark-domx/data",["skylark-domx-data"],function(r){return r}),define("skylark-domx/eventer",["skylark-domx-eventer"],function(r){return r}),define("skylark-domx/finder",["skylark-domx-finder"],function(r){return r}),define("skylark-domx/fx",["skylark-domx-fx"],function(r){return r}),define("skylark-domx/geom",["skylark-domx-geom"],function(r){return r}),define("skylark-domx/iframes",["skylark-domx-iframes"],function(r){return r}),define("skylark-domx/lists",["skylark-domx-lists"],function(r){return r}),define("skylark-domx/medias",["skylark-domx-medias"],function(r){return r}),define("skylark-domx/noder",["skylark-domx-noder"],function(r){return r}),define("skylark-domx/styler",["skylark-domx-styler"],function(r){return r}),define("skylark-domx/query",["skylark-domx-query","./data","./eventer","./fx","./geom","./styler"],function(r){return r}),define("skylark-domx/transforms",["skylark-domx-transforms"],function(r){return r}),define("skylark-domx/transits",["skylark-domx-transits"],function(r){return r}),define("skylark-domx/velm",["skylark-domx-velm","./data","./eventer","./fx","./geom","./styler"],function(r){return r}),define("skylark-domx/main",["./animates","./browser","./css","./data","./eventer","./finder","./fx","./geom","./iframes","./lists","./medias","./noder","./query","./styler","./transforms","./transits","./velm"],function(r,e,n,s,t,a,d,k,o,i,m,f,l,y,u,x,c){return{animates:r,browser:e,css:n,data:s,eventer:t,finder:a,geom:k,lists:i,medias:m,noder:f,iframes:o,query:l,styler:y,transforms:u,transits:x,velm:c}}),define("skylark-domx",["skylark-domx/main"],function(r){return r});
+},this,define,require);
 //# sourceMappingURL=sourcemaps/skylark-domx.js.map

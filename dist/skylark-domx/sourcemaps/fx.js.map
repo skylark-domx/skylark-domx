@@ -1,1 +1,1 @@
-{"version":3,"sources":["fx.js"],"names":["define","fx"],"mappings":";;;;;;;AAAAA,QACI,mBACD,SAAUC,GACT,OAAOA","file":"../fx.js","sourcesContent":["define([\r\n    \"skylark-domx-fx\"\r\n], function( fx) {\r\n    return fx;\r\n});"]}
+{"version":3,"sources":["fx.js"],"names":["define","fx"],"mappings":";;;;;;;AAAAA,OAAO,CACH,mBACD,SAAUC,GACT,OAAOA,CACX,CAAC","file":"../fx.js","sourcesContent":["define([\r\n    \"skylark-domx-fx\"\r\n], function( fx) {\r\n    return fx;\r\n});"]}

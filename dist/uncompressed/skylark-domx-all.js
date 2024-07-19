@@ -5,10 +5,8 @@
  * @link www.skylarkjs.org
  * @license MIT
  */
-(function(factory,globals) {
-  var define = globals.define,
-      require = globals.require,
-      isAmd = (typeof define === 'function' && define.amd),
+(function(factory,globals,define,require) {
+  var isAmd = (typeof define === 'function' && define.amd),
       isCmd = (!isAmd && typeof exports !== 'undefined');
 
   if (!isAmd && !define) {
@@ -5888,7 +5886,7 @@ define('skylark-langx-binary/arraylike-to-string',[
         applyCanBeUsed: {
             uint8array: function () {
                 try {
-                    return support.uint8array && String.fromCharCode.apply(null, new Uint8Array(1)).length === 1;
+                    return  String.fromCharCode.apply(null, new Uint8Array(1)).length === 1;
                 } catch (e) {
                     return false;
                 }
@@ -5896,7 +5894,7 @@ define('skylark-langx-binary/arraylike-to-string',[
             nodebuffer: function () {
                 try {
                 ///    return support.nodebuffer && String.fromCharCode.apply(null, nodejsUtils.allocBuffer(1)).length === 1;
-                    return support.nodebuffer && String.fromCharCode.apply(null, Buffer.alloc(1)).length === 1;
+                    return  String.fromCharCode.apply(null, Buffer.alloc(1)).length === 1;
                 } catch (e) {
                     return false;
                 }
@@ -15447,7 +15445,7 @@ define('skylark-langx/langx',[
     var langx = skylark.attach("langx");
 
     mixin(langx, {
-        createEvent : Emitter.createEvent,
+        createEvent : events.createEvent,
 
         funcArg: funcArg,
 
@@ -25929,5 +25927,5 @@ define('skylark-domx/main',[
 define('skylark-domx', ['skylark-domx/main'], function (main) { return main; });
 
 
-},this);
+},this,define,require);
 //# sourceMappingURL=sourcemaps/skylark-domx-all.js.map

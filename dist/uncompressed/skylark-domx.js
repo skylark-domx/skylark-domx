@@ -5,10 +5,8 @@
  * @link www.skylarkjs.org
  * @license MIT
  */
-(function(factory,globals) {
-  var define = globals.define,
-      require = globals.require,
-      isAmd = (typeof define === 'function' && define.amd),
+(function(factory,globals,define,require) {
+  var isAmd = (typeof define === 'function' && define.amd),
       isCmd = (!isAmd && typeof exports !== 'undefined');
 
   if (!isAmd && !define) {
@@ -86,6 +84,159 @@
 
 })(function(define,require) {
 
+define('skylark-domx/animates',[
+    "skylark-domx-animates"
+], function( animates) {
+    return animates;
+});
+define('skylark-domx/browser',[
+    "skylark-domx-browser"
+], function(browser) {
+    "use strict";
 
-},this);
+    return browser;
+});
+
+define('skylark-domx/css',[
+    "skylark-domx-css"
+], function( css) {
+    "use strict";
+
+     return css;
+});
+
+define('skylark-domx/data',[
+    "skylark-domx-data"
+], function( data) {
+ 
+    return data;
+});
+define('skylark-domx/eventer',[
+    "skylark-domx-eventer"
+], function( eventer) {
+ 
+    return eventer;
+});
+define('skylark-domx/finder',[
+    "skylark-domx-finder"
+], function( finder) {
+
+    return finder;
+});
+define('skylark-domx/fx',[
+    "skylark-domx-fx"
+], function( fx) {
+    return fx;
+});
+define('skylark-domx/geom',[
+    "skylark-domx-geom"
+], function( geom) {
+
+    return geom;
+});
+define('skylark-domx/iframes',[
+    "skylark-domx-iframes"
+], function( iframes) {
+    return iframes;
+});
+define('skylark-domx/lists',[
+    "skylark-domx-lists"
+], function( lists) {
+
+    return lists;
+});
+define('skylark-domx/medias',[
+    "skylark-domx-medias"
+], function( medias) {
+
+    return medias;
+});
+define('skylark-domx/noder',[
+    "skylark-domx-noder"
+], function( noder) {
+
+    return noder;
+});
+define('skylark-domx/styler',[
+    "skylark-domx-styler"
+], function( styler) {
+
+    return styler;
+});
+define('skylark-domx/query',[
+    "skylark-domx-query",
+    "./data",
+    "./eventer",
+    "./fx",
+    "./geom",
+    "./styler"
+], function( query) {
+
+    return query;
+
+});
+define('skylark-domx/transforms',[
+    "skylark-domx-transforms"
+], function(transforms) {
+  return transforms;
+});
+
+define('skylark-domx/transits',[
+    "skylark-domx-transits"
+], function( transits) {
+    return transits;
+});
+define('skylark-domx/velm',[
+    "skylark-domx-velm",
+    "./data",
+    "./eventer",
+    "./fx",
+    "./geom",
+    "./styler"
+], function( velm) {
+     return velm;
+});
+define('skylark-domx/main',[
+    "./animates",
+    "./browser",
+    "./css",
+    "./data",
+    "./eventer",
+    "./finder",
+    "./fx",
+    "./geom",
+    "./iframes",
+    "./lists",
+    "./medias",
+    "./noder",
+    "./query",
+    "./styler",
+    "./transforms",
+    "./transits",
+    "./velm"
+], function(animates,browser,css,data,eventer,finder,fx,geom,iframes,lists,medias,noder,query,styler,transforms,transits,velm) {
+    return {
+        animates,
+        browser,
+        css,
+        data,
+        eventer,
+        finder,
+        geom,
+        lists,
+        medias,
+        noder,
+        iframes,
+        query,
+        styler,
+        transforms,
+        transits,
+        velm
+    };
+})
+;
+define('skylark-domx', ['skylark-domx/main'], function (main) { return main; });
+
+
+},this,define,require);
 //# sourceMappingURL=sourcemaps/skylark-domx.js.map
